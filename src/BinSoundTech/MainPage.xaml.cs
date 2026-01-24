@@ -52,4 +52,9 @@ public partial class MainPage : ContentPage
     {
         await _viewModel.PlayAudioAsync();
     }
+
+    private void OnPauseAudioClicked(object? sender, EventArgs e)
+    {
+        _viewModel.PauseAudio();
+    }
 }

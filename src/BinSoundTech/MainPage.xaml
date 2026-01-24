@@ -29,20 +29,20 @@
                    Opacity="{Binding IsLoadingHrtf, Converter={StaticResource BoolToOpacityConverter}}" />
 
             <!-- Direction Indicator -->
-            <Frame BackgroundColor="{AppThemeBinding Light={StaticResource Primary}, Dark={StaticResource PrimaryDark}}"
+            <Border BackgroundColor="{AppThemeBinding Light={StaticResource Primary}, Dark={StaticResource PrimaryDark}}"
                    Padding="15"
-                   CornerRadius="10"
+                   StrokeShape="RoundRectangle 10"
                    HorizontalOptions="Center">
                 <Label Text="{Binding DirectionDescription}"
                        FontSize="18"
                        TextColor="White"
                        HorizontalOptions="Center" />
-            </Frame>
+            </Border>
 
             <!-- Azimuth Control -->
-            <Frame BackgroundColor="{AppThemeBinding Light=#F5F5F5, Dark=#2D2D2D}"
+            <Border BackgroundColor="{AppThemeBinding Light=#F5F5F5, Dark=#2D2D2D}"
                    Padding="20"
-                   CornerRadius="10">
+                   StrokeShape="RoundRectangle 10">
                 <VerticalStackLayout Spacing="10">
                     <Label Text="Azimuth (Left/Right)"
                            FontSize="18"
@@ -50,7 +50,7 @@
                     
                     <Grid ColumnDefinitions="50,*,50" RowDefinitions="Auto,Auto">
                         <Label Grid.Column="0" 
-                               Text="-80°" 
+                               Text="-80" 
                                VerticalOptions="Center"
                                HorizontalOptions="Start" />
                         
@@ -63,7 +63,7 @@
                                 ThumbColor="{StaticResource Primary}" />
                         
                         <Label Grid.Column="2" 
-                               Text="80°" 
+                               Text="80" 
                                VerticalOptions="Center"
                                HorizontalOptions="End" />
                         
@@ -80,12 +80,12 @@
                            TextColor="Gray"
                            HorizontalOptions="Center" />
                 </VerticalStackLayout>
-            </Frame>
+            </Border>
 
             <!-- Elevation Control -->
-            <Frame BackgroundColor="{AppThemeBinding Light=#F5F5F5, Dark=#2D2D2D}"
+            <Border BackgroundColor="{AppThemeBinding Light=#F5F5F5, Dark=#2D2D2D}"
                    Padding="20"
-                   CornerRadius="10">
+                   StrokeShape="RoundRectangle 10">
                 <VerticalStackLayout Spacing="10">
                     <Label Text="Elevation (Up/Down)"
                            FontSize="18"
@@ -93,7 +93,7 @@
                     
                     <Grid ColumnDefinitions="50,*,50" RowDefinitions="Auto,Auto">
                         <Label Grid.Column="0" 
-                               Text="-45°" 
+                               Text="-45" 
                                VerticalOptions="Center"
                                HorizontalOptions="Start" />
                         
@@ -106,7 +106,7 @@
                                 ThumbColor="{StaticResource Elevation}" />
                         
                         <Label Grid.Column="2" 
-                               Text="231°" 
+                               Text="231" 
                                VerticalOptions="Center"
                                HorizontalOptions="End" />
                         
@@ -118,17 +118,17 @@
                                TextColor="{StaticResource Elevation}" />
                     </Grid>
                     
-                    <Label Text="0° = Ear level, 90° = Above, 180° = Behind"
+                    <Label Text="0 = Ear level, 90 = Above, 180 = Behind"
                            FontSize="12"
                            TextColor="Gray"
                            HorizontalOptions="Center" />
                 </VerticalStackLayout>
-            </Frame>
+            </Border>
 
             <!-- Crossover Filter Control -->
-            <Frame BackgroundColor="{AppThemeBinding Light=#F5F5F5, Dark=#2D2D2D}"
+            <Border BackgroundColor="{AppThemeBinding Light=#F5F5F5, Dark=#2D2D2D}"
                    Padding="20"
-                   CornerRadius="10">
+                   StrokeShape="RoundRectangle 10">
                 <VerticalStackLayout Spacing="10">
                     <HorizontalStackLayout Spacing="10" HorizontalOptions="Center">
                         <CheckBox IsChecked="{Binding UseCrossover}"
@@ -151,12 +151,12 @@
                                VerticalOptions="Center" />
                     </HorizontalStackLayout>
                 </VerticalStackLayout>
-            </Frame>
+            </Border>
 
             <!-- Quick Position Buttons -->
-            <Frame BackgroundColor="{AppThemeBinding Light=#F5F5F5, Dark=#2D2D2D}"
+            <Border BackgroundColor="{AppThemeBinding Light=#F5F5F5, Dark=#2D2D2D}"
                    Padding="20"
-                   CornerRadius="10">
+                   StrokeShape="RoundRectangle 10">
                 <VerticalStackLayout Spacing="15">
                     <Label Text="Quick Positions"
                            FontSize="18"
@@ -188,12 +188,12 @@
                                 WidthRequest="100" />
                     </FlexLayout>
                 </VerticalStackLayout>
-            </Frame>
+            </Border>
 
             <!-- Audio File Selection -->
-            <Frame BackgroundColor="{AppThemeBinding Light=#F5F5F5, Dark=#2D2D2D}"
+            <Border BackgroundColor="{AppThemeBinding Light=#F5F5F5, Dark=#2D2D2D}"
                    Padding="20"
-                   CornerRadius="10">
+                   StrokeShape="RoundRectangle 10">
                 <VerticalStackLayout Spacing="15">
                     <Label Text="Audio File"
                            FontSize="18"
@@ -206,16 +206,19 @@
                            HorizontalOptions="Center"
                            LineBreakMode="TailTruncation" />
                     
-                    <Grid ColumnDefinitions="*,*" ColumnSpacing="10">
+                    <Grid ColumnDefinitions="*,*,*" ColumnSpacing="10">
                         <Button Grid.Column="0"
                                 Text="Select File"
                                 Clicked="OnSelectAudioFileClicked" />
                         <Button Grid.Column="1"
                                 Text="Play"
                                 Clicked="OnPlayAudioClicked" />
+                        <Button Grid.Column="2"
+                                Text="Pause"
+                                Clicked="OnPauseAudioClicked" />
                     </Grid>
                 </VerticalStackLayout>
-            </Frame>
+            </Border>
 
         </VerticalStackLayout>
     </ScrollView>

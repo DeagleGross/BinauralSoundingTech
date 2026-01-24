@@ -340,6 +340,15 @@ public class MainPageViewModel : BaseViewModel
     }
 
     /// <summary>
+    /// Pauses audio playback.
+    /// </summary>
+    public void PauseAudio()
+    {
+        _audioPlaybackService?.Stop();
+        LoadingStatus = "Paused";
+    }
+
+    /// <summary>
     /// Stops audio playback.
     /// </summary>
     public void StopAudio()
