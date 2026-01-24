@@ -255,13 +255,15 @@ public class MainPageViewModel : BaseViewModel
     private void OnAzimuthChanged()
     {
         OnPropertyChanged(nameof(DirectionDescription));
-        // TODO: Update binaural effect when audio service is implemented
+        // Update binaural effect in real-time
+        _audioPlaybackService.Azimuth = Azimuth;
     }
 
     private void OnElevationChanged()
     {
         OnPropertyChanged(nameof(DirectionDescription));
-        // TODO: Update binaural effect when audio service is implemented
+        // Update binaural effect in real-time
+        _audioPlaybackService.Elevation = Elevation;
     }
 
     /// <summary>
@@ -312,14 +314,21 @@ public class MainPageViewModel : BaseViewModel
         {
             LoadingStatus = "Playing...";
             
-            // Play with binaural processing if HRTF data is loaded
-            await _audioPlaybackService.PlayAsync(
-                CurrentAudioFilePath,
-                CurrentHrtfData,
-                Azimuth,
-                Elevation);
+            // Load HRTF data if available
+            if (CurrentHrtfData != null)
+            {
+                _audioPlaybackService.LoadHrtfData(CurrentHrtfData);
+            }
             
-            LoadingStatus = "Ready";
+            // Set azimuth and elevation
+            _audioPlaybackService.Azimuth = Azimuth;
+            _audioPlaybackService.Elevation = Elevation;
+            
+            // Load and play the audio file
+            _audioPlaybackService.Load(CurrentAudioFilePath);
+            _audioPlaybackService.Play();
+            
+            LoadingStatus = "Playing";
         }
         catch (Exception ex)
         {

@@ -63,5 +63,10 @@
 	<ItemGroup>
 		<PackageReference Include="NWaves" Version="0.9.6" />
 	</ItemGroup>
+
+	<!-- Windows-specific audio packages -->
+	<ItemGroup Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'windows'">
+		<PackageReference Include="NAudio" Version="2.2.1" />
+	</ItemGroup>
 	
 </Project>

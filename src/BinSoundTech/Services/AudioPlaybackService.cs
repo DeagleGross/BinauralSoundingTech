@@ -1,17 +1,34 @@
-using System.Collections.Generic;
-using System.IO;
-using System.Threading.Tasks;
+#if WINDOWS
+using NAudio.Wave;
+using NAudioWaveFormat = NAudio.Wave.WaveFormat;
+#endif
+using NWaves.Effects.Stereo;
 
 namespace BinSoundTech.Services;
 
 /// <summary>
-/// Audio playback service for MAUI.
-/// Handles loading and playing audio files with optional effects processing.
+/// Audio playback service with binaural panning support.
+/// Uses NAudio for Windows playback and NWaves for audio processing and effects.
+/// Based on the NWaves.DemoStereo sample.
 /// </summary>
-public class AudioPlaybackService
+public class AudioPlaybackService : IDisposable
+#if WINDOWS
+    , ISampleProvider
+#endif
 {
-    private CancellationTokenSource? _cancellationTokenSource;
+#if WINDOWS
+    private AudioFileReader? _reader;
+    private WaveOutEvent? _player;
+    private StereoEffect? _effect;
+    private readonly float[] _tmpBuffer = new float[16000];
+    private NAudioWaveFormat? _waveFormat;
+#endif
+
     private bool _isPlaying;
+    private float _azimuth;
+    private float _elevation;
+    private BinauralPanEffect? _binauralPanEffect;
+    private PanEffect _panEffect = new(0, PanRule.Linear);
 
     /// <summary>
     /// Gets whether audio is currently playing.
@@ -19,81 +36,253 @@ public class AudioPlaybackService
     public bool IsPlaying => _isPlaying;
 
     /// <summary>
+    /// Gets or sets the azimuth angle in degrees (-80 to 80).
+    /// </summary>
+    public float Azimuth
+    {
+        get => _azimuth;
+        set
+        {
+            _azimuth = value;
+            if (_binauralPanEffect != null)
+            {
+                _binauralPanEffect.Azimuth = _azimuth;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Gets or sets the elevation angle in degrees (-45 to 231).
+    /// </summary>
+    public float Elevation
+    {
+        get => _elevation;
+        set
+        {
+            _elevation = value;
+            if (_binauralPanEffect != null)
+            {
+                _binauralPanEffect.Elevation = _elevation;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Gets or sets the pan value (-1 to 1) for simple stereo panning.
+    /// </summary>
+    public float Pan
+    {
+        get => _panEffect.Pan;
+        set => _panEffect.Pan = value;
+    }
+
+    /// <summary>
+    /// Gets the number of channels in the loaded audio.
+    /// </summary>
+    public int Channels { get; private set; }
+
+#if WINDOWS
+    /// <summary>
+    /// Gets the wave format of the audio output.
+    /// </summary>
+    public NAudioWaveFormat? WaveFormat => _waveFormat;
+#endif
+
+    /// <summary>
     /// Event raised when playback completes.
     /// </summary>
     public event EventHandler? PlaybackCompleted;
 
     /// <summary>
-    /// Plays an audio file with optional binaural processing.
+    /// Loads HRTF data for binaural panning effect.
     /// </summary>
-    /// <param name="filePath">Full path to the audio file</param>
-    /// <param name="hrtfData">Optional HRTF data for binaural processing</param>
-    public async Task PlayAsync(string filePath, HrtfData? hrtfData = null, float azimuth = 0, float elevation = 0)
+    /// <param name="hrtfData">The HRTF data to use</param>
+    public void LoadHrtfData(HrtfData hrtfData)
+    {
+        if (hrtfData.LeftHrirs.Length == 0 || hrtfData.RightHrirs.Length == 0)
+        {
+            throw new InvalidOperationException("HRTF data is empty");
+        }
+
+        _binauralPanEffect = new BinauralPanEffect(
+            hrtfData.Azimuths,
+            hrtfData.Elevations,
+            hrtfData.LeftHrirs,
+            hrtfData.RightHrirs)
+        {
+            Azimuth = _azimuth,
+            Elevation = _elevation
+        };
+    }
+
+    /// <summary>
+    /// Loads an audio file for playback.
+    /// </summary>
+    /// <param name="filePath">Path to the audio file</param>
+    public void Load(string filePath)
     {
         if (!File.Exists(filePath))
         {
             throw new FileNotFoundException($"Audio file not found: {filePath}");
         }
 
-        try
-        {
-            _isPlaying = true;
-            _cancellationTokenSource = new CancellationTokenSource();
+#if WINDOWS
+        Stop();
+        _player?.Dispose();
+        _reader?.Dispose();
 
-            // TODO: Implement actual audio playback
-            // For now, this is a placeholder that simulates playback duration
-            // In a real implementation, you would:
-            // 1. Read the audio file using a library like NWaves
-            // 2. Apply binaural processing if HRTF data is provided
-            // 3. Play the audio using MediaManager or similar
+        _reader = new AudioFileReader(filePath);
+        Channels = _reader.WaveFormat.Channels;
+        
+        // Output is always stereo for binaural effect
+        _waveFormat = NAudioWaveFormat.CreateIeeeFloatWaveFormat(_reader.WaveFormat.SampleRate, 2);
 
-            var fileInfo = new FileInfo(filePath);
-            
-            // Simulate playback based on file size (rough estimation)
-            // Assume 16-bit stereo at 44.1kHz
-            var estimatedSamples = fileInfo.Length / 4; // 4 bytes per stereo sample
-            var estimatedDurationMs = (int)(estimatedSamples / 44.1 / 1000);
-
-            await Task.Delay(Math.Min(estimatedDurationMs, 5000), _cancellationTokenSource.Token);
-        }
-        catch (OperationCanceledException)
-        {
-            // Playback was cancelled
-        }
-        catch (Exception ex)
-        {
-            throw new InvalidOperationException($"Error playing audio: {ex.Message}", ex);
-        }
-        finally
-        {
-            _isPlaying = false;
-            _cancellationTokenSource?.Dispose();
-            PlaybackCompleted?.Invoke(this, EventArgs.Empty);
-        }
+        _player = new WaveOutEvent();
+        _player.Init(this);
+        _player.PlaybackStopped += OnPlaybackStopped;
+#endif
     }
 
-    /// <summary>
-    /// Stops the current playback.
-    /// </summary>
-    public void Stop()
+#if WINDOWS
+    private void OnPlaybackStopped(object? sender, StoppedEventArgs e)
     {
-        _cancellationTokenSource?.Cancel();
         _isPlaying = false;
+        PlaybackCompleted?.Invoke(this, EventArgs.Empty);
+    }
+#endif
+
+    /// <summary>
+    /// Updates the stereo effect to use for playback.
+    /// </summary>
+    /// <param name="effect">The stereo effect to apply</param>
+    public void SetEffect(StereoEffect effect)
+    {
+#if WINDOWS
+        _effect = effect;
+#endif
     }
 
     /// <summary>
-    /// Pauses the current playback.
+    /// Starts or resumes playback with the current effect.
+    /// If binaural HRTF is loaded, uses binaural panning; otherwise uses simple stereo panning.
+    /// </summary>
+    public void Play()
+    {
+#if WINDOWS
+        if (_player == null) return;
+
+        // Choose effect: binaural if HRTF loaded, otherwise simple pan
+        _effect = _binauralPanEffect ?? (StereoEffect)_panEffect;
+
+        if (_player.PlaybackState == PlaybackState.Stopped)
+        {
+            _reader?.Seek(0, SeekOrigin.Begin);
+        }
+
+        _player.Play();
+        _isPlaying = true;
+#endif
+    }
+
+    /// <summary>
+    /// Pauses playback.
     /// </summary>
     public void Pause()
     {
-        // TODO: Implement pause functionality
+#if WINDOWS
+        _player?.Pause();
+        _isPlaying = false;
+#endif
     }
 
     /// <summary>
-    /// Resumes paused playback.
+    /// Stops playback and resets to beginning.
     /// </summary>
-    public void Resume()
+    public void Stop()
     {
-        // TODO: Implement resume functionality
+#if WINDOWS
+        _player?.Stop();
+        _reader?.Seek(0, SeekOrigin.Begin);
+        _isPlaying = false;
+#endif
+    }
+
+#if WINDOWS
+    /// <summary>
+    /// ISampleProvider implementation - reads samples and applies stereo effect.
+    /// </summary>
+    public int Read(float[] buffer, int offset, int count)
+    {
+        if (_reader == null) return 0;
+
+        return _reader.WaveFormat.Channels switch
+        {
+            1 => ReadMono(buffer, offset, count),
+            _ => ReadStereo(buffer, offset, count),
+        };
+    }
+
+    /// <summary>
+    /// Reads mono audio and applies stereo effect to create binaural output.
+    /// </summary>
+    private int ReadMono(float[] buffer, int offset, int count)
+    {
+        if (_reader == null) return 0;
+
+        // Read mono samples (half the count since we output stereo)
+        var samplesRead = _reader.Read(_tmpBuffer, 0, count / 2);
+
+        if (_effect == null || samplesRead == 0)
+        {
+            return samplesRead;
+        }
+
+        // Apply stereo effect to mono input, producing stereo output
+        var pos = offset;
+        for (var n = 0; n < samplesRead; n++)
+        {
+            _effect.Process(_tmpBuffer[n], out float left, out float right);
+            buffer[pos++] = left;
+            buffer[pos++] = right;
+        }
+
+        return samplesRead * 2;
+    }
+
+    /// <summary>
+    /// Reads stereo audio and applies stereo effect.
+    /// </summary>
+    private int ReadStereo(float[] buffer, int offset, int count)
+    {
+        if (_reader == null) return 0;
+
+        var samplesRead = _reader.Read(buffer, offset, count);
+
+        if (_effect == null || samplesRead == 0)
+        {
+            return samplesRead;
+        }
+
+        // Apply stereo effect to each stereo sample pair
+        for (var n = offset; n < samplesRead; n += 2)
+        {
+            _effect.Process(ref buffer[n], ref buffer[n + 1]);
+        }
+
+        return samplesRead;
+    }
+#endif
+
+    /// <summary>
+    /// Disposes resources.
+    /// </summary>
+    public void Dispose()
+    {
+#if WINDOWS
+        _player?.Stop();
+        _player?.Dispose();
+        _reader?.Dispose();
+#endif
+        GC.SuppressFinalize(this);
     }
 }

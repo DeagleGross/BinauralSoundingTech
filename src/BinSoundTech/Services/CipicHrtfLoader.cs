@@ -1,6 +1,4 @@
-using System.Collections.Generic;
-using System.IO;
-using System.Threading.Tasks;
+using NWaves.Audio;
 
 namespace BinSoundTech.Services;
 
@@ -33,6 +31,7 @@ public class CipicHrtfLoader
     /// <summary>
     /// Loads HRTF data from a CIPIC subject directory.
     /// Looks for .wav files matching the pattern: {azimuth}az[left|right].wav
+    /// Based on NWaves.DemoStereo LoadHrirs implementation.
     /// </summary>
     /// <param name="subjectDirectory">Path to the subject directory (e.g., "subject03")</param>
     /// <returns>HrtfData containing left and right HRIRs</returns>
@@ -50,20 +49,39 @@ public class CipicHrtfLoader
                     leftHrirs[i] = new float[Elevations.Length][];
                     rightHrirs[i] = new float[Elevations.Length][];
 
-                    // Find left and right HRIR files for this azimuth
+                    // Build filenames - negative azimuths use "neg" prefix
                     var leftHrirFilename = Path.Combine(subjectDirectory,
                         $"{Azimuths[i]}azleft.wav".Replace("-", "neg"));
                     var rightHrirFilename = Path.Combine(subjectDirectory,
                         $"{Azimuths[i]}azright.wav".Replace("-", "neg"));
 
-                    // Load samples from files for each elevation
+                    // Load samples from WAV files for each elevation
+                    // Each WAV file has multiple channels (one per elevation)
                     for (var j = 0; j < Elevations.Length; j++)
                     {
-                        // Note: This is a simplified implementation.
-                        // In a real scenario, you would parse the WAV files using NWaves or another audio library
-                        // For now, we'll create placeholder arrays
-                        leftHrirs[i][j] = new float[512];  // Typical HRIR length
-                        rightHrirs[i][j] = new float[512];
+                        // Read left HRIR - each channel is a different elevation
+                        using (var streamLeft = new FileStream(leftHrirFilename, FileMode.Open))
+                        {
+                            var waveFileLeft = new WaveFile(streamLeft);
+                            leftHrirs[i][j] = new float[waveFileLeft.WaveFmt.ChannelCount];
+
+                            for (var k = 0; k < leftHrirs[i][j].Length; k++)
+                            {
+                                leftHrirs[i][j][k] = waveFileLeft.Signals[k].Samples[j];
+                            }
+                        }
+
+                        // Read right HRIR
+                        using (var streamRight = new FileStream(rightHrirFilename, FileMode.Open))
+                        {
+                            var waveFileRight = new WaveFile(streamRight);
+                            rightHrirs[i][j] = new float[waveFileRight.WaveFmt.ChannelCount];
+
+                            for (var k = 0; k < rightHrirs[i][j].Length; k++)
+                            {
+                                rightHrirs[i][j][k] = waveFileRight.Signals[k].Samples[j];
+                            }
+                        }
                     }
                 }
 
