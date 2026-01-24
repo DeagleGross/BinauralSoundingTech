@@ -42,4 +42,14 @@ public partial class MainPage : ContentPage
         _viewModel.Azimuth = 0;
         _viewModel.Elevation = 180;
     }
+
+    private async void OnSelectAudioFileClicked(object? sender, EventArgs e)
+    {
+        await _viewModel.SelectAudioFileAsync();
+    }
+
+    private async void OnPlayAudioClicked(object? sender, EventArgs e)
+    {
+        await _viewModel.PlayAudioAsync();
+    }
 }

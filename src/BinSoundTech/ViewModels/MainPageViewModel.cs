@@ -23,6 +23,8 @@ public class MainPageViewModel : BaseViewModel
     private HrtfData? _currentHrtfData;
     private bool _isLoadingHrtf;
     private string _loadingStatus = "Ready";
+    private string _currentAudioFilePath = string.Empty;
+    private string _currentAudioFileName = "No file loaded";
 
     /// <summary>
     /// Azimuth angle in degrees (-80 to 80).
@@ -111,6 +113,24 @@ public class MainPageViewModel : BaseViewModel
     {
         get => _loadingStatus;
         set => SetProperty(ref _loadingStatus, value);
+    }
+
+    /// <summary>
+    /// Currently loaded audio file path.
+    /// </summary>
+    public string CurrentAudioFilePath
+    {
+        get => _currentAudioFilePath;
+        set => SetProperty(ref _currentAudioFilePath, value);
+    }
+
+    /// <summary>
+    /// Display name of the currently loaded audio file.
+    /// </summary>
+    public string CurrentAudioFileName
+    {
+        get => _currentAudioFileName;
+        set => SetProperty(ref _currentAudioFileName, value);
     }
 
     /// <summary>
@@ -212,5 +232,65 @@ public class MainPageViewModel : BaseViewModel
     {
         OnPropertyChanged(nameof(DirectionDescription));
         // TODO: Update binaural effect when audio service is implemented
+    }
+
+    /// <summary>
+    /// Opens a file picker to select a WAV audio file.
+    /// </summary>
+    public async Task SelectAudioFileAsync()
+    {
+        try
+        {
+            var result = await FilePicker.Default.PickAsync(new PickOptions
+            {
+                FileTypes = new FilePickerFileType(new Dictionary<DevicePlatform, IEnumerable<string>>
+                {
+                    { DevicePlatform.iOS, new[] { "public.audio" } },
+                    { DevicePlatform.Android, new[] { "audio/*" } },
+                    { DevicePlatform.WinUI, new[] { ".wav", ".mp3", ".m4a" } },
+                    { DevicePlatform.macOS, new[] { "public.audio" } }
+                }),
+                PickerTitle = "Select an audio file"
+            });
+
+            if (result != null)
+            {
+                CurrentAudioFilePath = result.FullPath;
+                CurrentAudioFileName = result.FileName;
+            }
+        }
+        catch (Exception ex)
+        {
+#if DEBUG
+            System.Diagnostics.Debug.WriteLine($"Error picking file: {ex}");
+#endif
+        }
+    }
+
+    /// <summary>
+    /// Plays the currently loaded audio file.
+    /// </summary>
+    public async Task PlayAudioAsync()
+    {
+        if (string.IsNullOrEmpty(CurrentAudioFilePath))
+        {
+            LoadingStatus = "No audio file loaded";
+            return;
+        }
+
+        try
+        {
+            LoadingStatus = "Playing...";
+            // TODO: Implement actual audio playback with binaural processing
+            
+            LoadingStatus = "Ready";
+        }
+        catch (Exception ex)
+        {
+            LoadingStatus = $"Error: {ex.Message}";
+#if DEBUG
+            System.Diagnostics.Debug.WriteLine($"Playback Error: {ex}");
+#endif
+        }
     }
 }

@@ -190,6 +190,33 @@
                 </VerticalStackLayout>
             </Frame>
 
+            <!-- Audio File Selection -->
+            <Frame BackgroundColor="{AppThemeBinding Light=#F5F5F5, Dark=#2D2D2D}"
+                   Padding="20"
+                   CornerRadius="10">
+                <VerticalStackLayout Spacing="15">
+                    <Label Text="Audio File"
+                           FontSize="18"
+                           FontAttributes="Bold"
+                           HorizontalOptions="Center" />
+                    
+                    <Label Text="{Binding CurrentAudioFileName}"
+                           FontSize="14"
+                           TextColor="Gray"
+                           HorizontalOptions="Center"
+                           LineBreakMode="TailTruncation" />
+                    
+                    <Grid ColumnDefinitions="*,*" ColumnSpacing="10">
+                        <Button Grid.Column="0"
+                                Text="Select File"
+                                Clicked="OnSelectAudioFileClicked" />
+                        <Button Grid.Column="1"
+                                Text="Play"
+                                Clicked="OnPlayAudioClicked" />
+                    </Grid>
+                </VerticalStackLayout>
+            </Frame>
+
         </VerticalStackLayout>
     </ScrollView>
 
