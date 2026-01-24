@@ -4,11 +4,11 @@
     xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
     xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
     xmlns:local="clr-namespace:BinSoundTech"
-    Title="BinSoundTech">
+    Title="Binaural Sound Tech">
 
     <ShellContent
+        x:Name="MainShellContent"
         Title="Home"
-        ContentTemplate="{DataTemplate local:MainPage}"
         Route="MainPage" />
 
 </Shell>

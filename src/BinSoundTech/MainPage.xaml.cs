@@ -1,24 +1,45 @@
-﻿namespace BinSoundTech
+﻿using BinSoundTech.ViewModels;
+
+namespace BinSoundTech;
+
+public partial class MainPage : ContentPage
 {
-    public partial class MainPage : ContentPage
+    private readonly MainPageViewModel _viewModel;
+
+    public MainPage(MainPageViewModel viewModel)
     {
-        int count = 0;
+        InitializeComponent();
+        _viewModel = viewModel;
+        BindingContext = _viewModel;
+    }
 
-        public MainPage()
-        {
-            InitializeComponent();
-        }
+    private void OnFrontClicked(object? sender, EventArgs e)
+    {
+        _viewModel.Azimuth = 0;
+        _viewModel.Elevation = 0;
+    }
 
-        private void OnCounterClicked(object? sender, EventArgs e)
-        {
-            count++;
+    private void OnLeftClicked(object? sender, EventArgs e)
+    {
+        _viewModel.Azimuth = -80;
+        _viewModel.Elevation = 0;
+    }
 
-            if (count == 1)
-                CounterBtn.Text = $"Clicked {count} time";
-            else
-                CounterBtn.Text = $"Clicked {count} times";
+    private void OnRightClicked(object? sender, EventArgs e)
+    {
+        _viewModel.Azimuth = 80;
+        _viewModel.Elevation = 0;
+    }
 
-            SemanticScreenReader.Announce(CounterBtn.Text);
-        }
+    private void OnAboveClicked(object? sender, EventArgs e)
+    {
+        _viewModel.Azimuth = 0;
+        _viewModel.Elevation = 90;
+    }
+
+    private void OnBehindClicked(object? sender, EventArgs e)
+    {
+        _viewModel.Azimuth = 0;
+        _viewModel.Elevation = 180;
     }
 }

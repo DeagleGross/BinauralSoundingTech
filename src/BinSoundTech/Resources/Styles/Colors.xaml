@@ -11,6 +11,10 @@
     <Color x:Key="Secondary">#DFD8F7</Color>
     <Color x:Key="SecondaryDarkText">#9880e5</Color>
     <Color x:Key="Tertiary">#2B0B98</Color>
+    
+    <!-- Custom colors for Binaural controls -->
+    <Color x:Key="Elevation">#E91E63</Color>
+    <Color x:Key="ElevationDark">#F48FB1</Color>
 
     <Color x:Key="White">White</Color>
     <Color x:Key="Black">Black</Color>
