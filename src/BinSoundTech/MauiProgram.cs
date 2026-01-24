@@ -1,4 +1,5 @@
-﻿using BinSoundTech.ViewModels;
+﻿using BinSoundTech.Services;
+using BinSoundTech.ViewModels;
 using Microsoft.Extensions.Logging;
 
 namespace BinSoundTech
@@ -16,12 +17,15 @@ namespace BinSoundTech
                     fonts.AddFont("OpenSans-Semibold.ttf", "OpenSansSemibold");
                 });
 
+            // Register Services
+            builder.Services.AddSingleton<AudioPlaybackService>();
+            
             // Register ViewModels
-            builder.Services.AddTransient<MainPageViewModel>();
+            builder.Services.AddSingleton<MainPageViewModel>();
             
             // Register Pages
-            builder.Services.AddTransient<MainPage>();
-            builder.Services.AddTransient<AppShell>();
+            builder.Services.AddSingleton<MainPage>();
+            builder.Services.AddSingleton<AppShell>();
 
 #if DEBUG
     		builder.Logging.AddDebug();

@@ -25,6 +25,7 @@ public class MainPageViewModel : BaseViewModel
     private string _loadingStatus = "Ready";
     private string _currentAudioFilePath = string.Empty;
     private string _currentAudioFileName = "No file loaded";
+    private readonly AudioPlaybackService _audioPlaybackService;
 
     /// <summary>
     /// Azimuth angle in degrees (-80 to 80).
@@ -162,11 +163,15 @@ public class MainPageViewModel : BaseViewModel
         }
     }
 
-    public MainPageViewModel()
+    public MainPageViewModel(AudioPlaybackService audioPlaybackService)
     {
         // Initialize to center position (directly in front at ear level)
         _azimuth = 0;
         _elevation = 0;
+
+        // Initialize audio playback service (injected via DI)
+        _audioPlaybackService = audioPlaybackService;
+        _audioPlaybackService.PlaybackCompleted += OnPlaybackCompleted;
         
         // Bootstrap: Load HRTF data on initialization
         _ = InitializeHrtfDataAsync();
@@ -183,18 +188,43 @@ public class MainPageViewModel : BaseViewModel
             IsLoadingHrtf = true;
             LoadingStatus = "Loading HRTF data...";
 
-            // Get the path to CIPIC_RIRS in the app bundle
-            var cipicPath = Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "CIPIC_RIRS");
-            var normalizedPath = Path.GetFullPath(cipicPath);
+            // Try multiple paths to locate CIPIC_RIRS
+            var cipicPaths = new[]
+            {
+                // Try relative path from executable
+                Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "CIPIC_RIRS"),
+                // Try from project root
+                Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..", "CIPIC_RIRS"),
+                // Try absolute path (if running from bin/Debug)
+                Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "CIPIC_RIRS"),
+                // Try from current directory
+                Path.Combine(Environment.CurrentDirectory, "CIPIC_RIRS"),
+                // Try from desktop project root
+                @"C:\Users\guram\Desktop\FP Project\BinauralSoundingTech\CIPIC_RIRS"
+            };
 
-            if (!Directory.Exists(normalizedPath))
+            string? cipicDirectory = null;
+            foreach (var path in cipicPaths)
+            {
+                var normalizedPath = Path.GetFullPath(path);
+                if (Directory.Exists(normalizedPath))
+                {
+                    cipicDirectory = normalizedPath;
+                    break;
+                }
+            }
+
+            if (cipicDirectory == null || !Directory.Exists(cipicDirectory))
             {
                 LoadingStatus = "CIPIC_RIRS directory not found";
+#if DEBUG
+                System.Diagnostics.Debug.WriteLine($"Could not find CIPIC_RIRS. Searched paths:\n{string.Join("\n", cipicPaths.Select(p => Path.GetFullPath(p)))}");
+#endif
                 return;
             }
 
             // Discover available subjects
-            var subjects = CipicHrtfLoader.DiscoverSubjects(normalizedPath);
+            var subjects = CipicHrtfLoader.DiscoverSubjects(cipicDirectory);
             
             if (subjects.Count == 0)
             {
@@ -281,7 +311,13 @@ public class MainPageViewModel : BaseViewModel
         try
         {
             LoadingStatus = "Playing...";
-            // TODO: Implement actual audio playback with binaural processing
+            
+            // Play with binaural processing if HRTF data is loaded
+            await _audioPlaybackService.PlayAsync(
+                CurrentAudioFilePath,
+                CurrentHrtfData,
+                Azimuth,
+                Elevation);
             
             LoadingStatus = "Ready";
         }
@@ -292,5 +328,19 @@ public class MainPageViewModel : BaseViewModel
             System.Diagnostics.Debug.WriteLine($"Playback Error: {ex}");
 #endif
         }
+    }
+
+    /// <summary>
+    /// Stops audio playback.
+    /// </summary>
+    public void StopAudio()
+    {
+        _audioPlaybackService?.Stop();
+        LoadingStatus = "Stopped";
+    }
+
+    private void OnPlaybackCompleted(object? sender, EventArgs e)
+    {
+        LoadingStatus = "Playback completed";
     }
 }
