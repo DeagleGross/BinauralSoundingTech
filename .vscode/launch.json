@@ -1,0 +1,31 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Debug (Windows)",
+            "type": "coreclr",
+            "request": "launch",
+            "preLaunchTask": "build-windows",
+            "program": "${workspaceFolder}/src/BinSoundTech/bin/Debug/net10.0-windows10.0.19041.0/win-x64/BinSoundTech.dll",
+            "cwd": "${workspaceFolder}/src/BinSoundTech",
+            "console": "internalConsole",
+            "stopAtEntry": false
+        },
+        {
+            "name": "Debug (Android Emulator)",
+            "type": "maui",
+            "request": "launch",
+            "preLaunchTask": "build-android",
+            "project": "${workspaceFolder}/src/BinSoundTech/BinSoundTech.csproj",
+            "device": "emulator"
+        },
+        {
+            "name": "Debug (Android Device)",
+            "type": "maui",
+            "request": "launch",
+            "preLaunchTask": "build-android",
+            "project": "${workspaceFolder}/src/BinSoundTech/BinSoundTech.csproj",
+            "device": "device"
+        }
+    ]
+}
