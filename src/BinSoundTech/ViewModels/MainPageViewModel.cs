@@ -1,3 +1,5 @@
+using BinSoundTech.Services;
+
 namespace BinSoundTech.ViewModels;
 
 /// <summary>
@@ -18,6 +20,9 @@ public class MainPageViewModel : BaseViewModel
     private float _elevation;
     private bool _useCrossover;
     private int _crossoverFrequency = 150;
+    private HrtfData? _currentHrtfData;
+    private bool _isLoadingHrtf;
+    private string _loadingStatus = "Ready";
 
     /// <summary>
     /// Azimuth angle in degrees (-80 to 80).
@@ -72,14 +77,41 @@ public class MainPageViewModel : BaseViewModel
     }
 
     // Display properties for UI
-    public string AzimuthDisplay => $"{Azimuth:F1}°";
-    public string ElevationDisplay => $"{Elevation:F1}°";
+    public string AzimuthDisplay => $"{Azimuth:F1}ï¿½";
+    public string ElevationDisplay => $"{Elevation:F1}ï¿½";
 
     // Range properties for sliders
     public float AzimuthMinimum => MinAzimuth;
     public float AzimuthMaximum => MaxAzimuth;
     public float ElevationMinimum => MinElevation;
     public float ElevationMaximum => MaxElevation;
+
+    /// <summary>
+    /// Current loaded HRTF data, if any.
+    /// </summary>
+    public HrtfData? CurrentHrtfData
+    {
+        get => _currentHrtfData;
+        set => SetProperty(ref _currentHrtfData, value);
+    }
+
+    /// <summary>
+    /// Whether HRTF data is currently being loaded.
+    /// </summary>
+    public bool IsLoadingHrtf
+    {
+        get => _isLoadingHrtf;
+        set => SetProperty(ref _isLoadingHrtf, value);
+    }
+
+    /// <summary>
+    /// Status message for HRTF loading.
+    /// </summary>
+    public string LoadingStatus
+    {
+        get => _loadingStatus;
+        set => SetProperty(ref _loadingStatus, value);
+    }
 
     /// <summary>
     /// Gets the direction description based on current azimuth/elevation.
@@ -115,6 +147,59 @@ public class MainPageViewModel : BaseViewModel
         // Initialize to center position (directly in front at ear level)
         _azimuth = 0;
         _elevation = 0;
+        
+        // Bootstrap: Load HRTF data on initialization
+        _ = InitializeHrtfDataAsync();
+    }
+
+    /// <summary>
+    /// Initializes HRTF data from CIPIC_RIRS directory on app startup.
+    /// Automatically loads the first available subject.
+    /// </summary>
+    private async Task InitializeHrtfDataAsync()
+    {
+        try
+        {
+            IsLoadingHrtf = true;
+            LoadingStatus = "Loading HRTF data...";
+
+            // Get the path to CIPIC_RIRS in the app bundle
+            var cipicPath = Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "CIPIC_RIRS");
+            var normalizedPath = Path.GetFullPath(cipicPath);
+
+            if (!Directory.Exists(normalizedPath))
+            {
+                LoadingStatus = "CIPIC_RIRS directory not found";
+                return;
+            }
+
+            // Discover available subjects
+            var subjects = CipicHrtfLoader.DiscoverSubjects(normalizedPath);
+            
+            if (subjects.Count == 0)
+            {
+                LoadingStatus = "No CIPIC subjects found";
+                return;
+            }
+
+            // Load the first available subject
+            var firstSubject = subjects.First();
+            LoadingStatus = $"Loading {Path.GetFileName(firstSubject)}...";
+            
+            CurrentHrtfData = await CipicHrtfLoader.LoadSubjectAsync(firstSubject);
+            LoadingStatus = $"Loaded {Path.GetFileName(firstSubject)}";
+        }
+        catch (Exception ex)
+        {
+            LoadingStatus = $"Error: {ex.Message}";
+#if DEBUG
+            System.Diagnostics.Debug.WriteLine($"HRTF Loading Error: {ex}");
+#endif
+        }
+        finally
+        {
+            IsLoadingHrtf = false;
+        }
     }
 
     private void OnAzimuthChanged()

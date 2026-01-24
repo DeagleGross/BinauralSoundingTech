@@ -2,9 +2,14 @@
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              xmlns:vm="clr-namespace:BinSoundTech.ViewModels"
+             xmlns:conv="clr-namespace:BinSoundTech.Converters"
              x:Class="BinSoundTech.MainPage"
              x:DataType="vm:MainPageViewModel"
              Title="Binaural Sound Tech">
+
+    <ContentPage.Resources>
+        <conv:BoolToOpacityConverter x:Key="BoolToOpacityConverter" />
+    </ContentPage.Resources>
 
     <ScrollView>
         <VerticalStackLayout Padding="20" Spacing="20">
@@ -15,6 +20,13 @@
                    FontAttributes="Bold"
                    HorizontalOptions="Center"
                    SemanticProperties.HeadingLevel="Level1" />
+
+            <!-- Loading Status -->
+            <Label Text="{Binding LoadingStatus}"
+                   FontSize="14"
+                   TextColor="Gray"
+                   HorizontalOptions="Center"
+                   Opacity="{Binding IsLoadingHrtf, Converter={StaticResource BoolToOpacityConverter}}" />
 
             <!-- Direction Indicator -->
             <Frame BackgroundColor="{AppThemeBinding Light={StaticResource Primary}, Dark={StaticResource PrimaryDark}}"
