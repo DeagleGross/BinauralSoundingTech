@@ -125,34 +125,6 @@
                 </VerticalStackLayout>
             </Border>
 
-            <!-- Crossover Filter Control -->
-            <Border BackgroundColor="{AppThemeBinding Light=#F5F5F5, Dark=#2D2D2D}"
-                   Padding="20"
-                   StrokeShape="RoundRectangle 10">
-                <VerticalStackLayout Spacing="10">
-                    <HorizontalStackLayout Spacing="10" HorizontalOptions="Center">
-                        <CheckBox IsChecked="{Binding UseCrossover}"
-                                  Color="{StaticResource Primary}" />
-                        <Label Text="Use Crossover Filter"
-                               FontSize="16"
-                               VerticalOptions="Center" />
-                    </HorizontalStackLayout>
-                    
-                    <HorizontalStackLayout Spacing="10" 
-                                           HorizontalOptions="Center"
-                                           IsVisible="{Binding UseCrossover}">
-                        <Label Text="Frequency:"
-                               VerticalOptions="Center" />
-                        <Entry Text="{Binding CrossoverFrequency}"
-                               Keyboard="Numeric"
-                               WidthRequest="80"
-                               HorizontalTextAlignment="Center" />
-                        <Label Text="Hz"
-                               VerticalOptions="Center" />
-                    </HorizontalStackLayout>
-                </VerticalStackLayout>
-            </Border>
-
             <!-- Quick Position Buttons -->
             <Border BackgroundColor="{AppThemeBinding Light=#F5F5F5, Dark=#2D2D2D}"
                    Padding="20"
