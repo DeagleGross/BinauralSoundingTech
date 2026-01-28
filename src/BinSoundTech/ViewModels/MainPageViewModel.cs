@@ -26,6 +26,9 @@ public class MainPageViewModel : BaseViewModel
     private string _currentAudioFilePath = string.Empty;
     private string _currentAudioFileName = "No file loaded";
     private readonly AudioPlaybackService _audioPlaybackService;
+    private MicrophoneMonitoringService? _microphoneMonitoringService;
+    private bool _isMicrophoneMonitoring;
+    private float _microphoneLevel;
 
     /// <summary>
     /// Azimuth angle in degrees (-80 to 80).
@@ -161,6 +164,24 @@ public class MainPageViewModel : BaseViewModel
 
             return $"{horizontal}, {vertical}";
         }
+    }
+
+    /// <summary>
+    /// Gets whether microphone monitoring is currently active.
+    /// </summary>
+    public bool IsMicrophoneMonitoring
+    {
+        get => _isMicrophoneMonitoring;
+        set => SetProperty(ref _isMicrophoneMonitoring, value);
+    }
+
+    /// <summary>
+    /// Gets the current microphone level (0.0 to 1.0).
+    /// </summary>
+    public float MicrophoneLevel
+    {
+        get => _microphoneLevel;
+        set => SetProperty(ref _microphoneLevel, value);
     }
 
     public MainPageViewModel(AudioPlaybackService audioPlaybackService)
@@ -355,6 +376,89 @@ public class MainPageViewModel : BaseViewModel
     {
         _audioPlaybackService?.Stop();
         LoadingStatus = "Stopped";
+    }
+
+    /// <summary>
+    /// Toggles microphone monitoring on or off.
+    /// </summary>
+    public void ToggleMicrophoneMonitoring()
+    {
+        if (IsMicrophoneMonitoring)
+        {
+            StopMicrophoneMonitoring();
+        }
+        else
+        {
+            StartMicrophoneMonitoring();
+        }
+    }
+
+    /// <summary>
+    /// Starts microphone monitoring.
+    /// </summary>
+    public void StartMicrophoneMonitoring()
+    {
+        try
+        {
+#if WINDOWS
+            _microphoneMonitoringService ??= new MicrophoneMonitoringService();
+            _microphoneMonitoringService.LevelUpdated += OnMicrophoneLevelUpdated;
+            _microphoneMonitoringService.MonitoringStopped += OnMicrophoneMonitoringStopped;
+            _microphoneMonitoringService.StartMonitoring();
+            IsMicrophoneMonitoring = true;
+            LoadingStatus = "Microphone monitoring active";
+#else
+            LoadingStatus = "Microphone monitoring is only available on Windows";
+#endif
+        }
+        catch (Exception ex)
+        {
+            LoadingStatus = $"Error: {ex.Message}";
+#if DEBUG
+            System.Diagnostics.Debug.WriteLine($"Microphone monitoring error: {ex}");
+#endif
+        }
+    }
+
+    /// <summary>
+    /// Stops microphone monitoring.
+    /// </summary>
+    public void StopMicrophoneMonitoring()
+    {
+        try
+        {
+            _microphoneMonitoringService?.StopMonitoring();
+            IsMicrophoneMonitoring = false;
+            MicrophoneLevel = 0f;
+            LoadingStatus = "Microphone monitoring stopped";
+        }
+        catch (Exception ex)
+        {
+            LoadingStatus = $"Error: {ex.Message}";
+        }
+    }
+
+    /// <summary>
+    /// Handles microphone level updates.
+    /// </summary>
+    private void OnMicrophoneLevelUpdated(object? sender, AudioLevelEventArgs e)
+    {
+        MainThread.BeginInvokeOnMainThread(() =>
+        {
+            MicrophoneLevel = e.Level;
+        });
+    }
+
+    /// <summary>
+    /// Handles when microphone monitoring stops.
+    /// </summary>
+    private void OnMicrophoneMonitoringStopped(object? sender, EventArgs e)
+    {
+        MainThread.BeginInvokeOnMainThread(() =>
+        {
+            IsMicrophoneMonitoring = false;
+            MicrophoneLevel = 0f;
+        });
     }
 
     private void OnPlaybackCompleted(object? sender, EventArgs e)

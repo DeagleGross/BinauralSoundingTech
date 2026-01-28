@@ -57,4 +57,9 @@ public partial class MainPage : ContentPage
     {
         _viewModel.PauseAudio();
     }
+
+    private void OnToggleMicrophoneClicked(object? sender, EventArgs e)
+    {
+        _viewModel.ToggleMicrophoneMonitoring();
+    }
 }
