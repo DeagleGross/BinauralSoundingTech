@@ -276,15 +276,25 @@ public class MainPageViewModel : BaseViewModel
     private void OnAzimuthChanged()
     {
         OnPropertyChanged(nameof(DirectionDescription));
-        // Update binaural effect in real-time
+        // Update binaural effect in real-time for file playback
         _audioPlaybackService.Azimuth = Azimuth;
+        // Update binaural effect for live microphone monitoring
+        if (_microphoneMonitoringService != null && IsMicrophoneMonitoring)
+        {
+            _microphoneMonitoringService.Azimuth = Azimuth;
+        }
     }
 
     private void OnElevationChanged()
     {
         OnPropertyChanged(nameof(DirectionDescription));
-        // Update binaural effect in real-time
+        // Update binaural effect in real-time for file playback
         _audioPlaybackService.Elevation = Elevation;
+        // Update binaural effect for live microphone monitoring
+        if (_microphoneMonitoringService != null && IsMicrophoneMonitoring)
+        {
+            _microphoneMonitoringService.Elevation = Elevation;
+        }
     }
 
     /// <summary>
@@ -402,11 +412,22 @@ public class MainPageViewModel : BaseViewModel
         {
 #if WINDOWS
             _microphoneMonitoringService ??= new MicrophoneMonitoringService();
+            
+            // Load HRTF data if available
+            if (CurrentHrtfData != null)
+            {
+                _microphoneMonitoringService.LoadHrtfData(CurrentHrtfData);
+            }
+            
+            // Set current azimuth and elevation
+            _microphoneMonitoringService.Azimuth = Azimuth;
+            _microphoneMonitoringService.Elevation = Elevation;
+            
             _microphoneMonitoringService.LevelUpdated += OnMicrophoneLevelUpdated;
             _microphoneMonitoringService.MonitoringStopped += OnMicrophoneMonitoringStopped;
             _microphoneMonitoringService.StartMonitoring();
             IsMicrophoneMonitoring = true;
-            LoadingStatus = "Microphone monitoring active";
+            LoadingStatus = "Microphone monitoring active - move sliders to change sound direction";
 #else
             LoadingStatus = "Microphone monitoring is only available on Windows";
 #endif

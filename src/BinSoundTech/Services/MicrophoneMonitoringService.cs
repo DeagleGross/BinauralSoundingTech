@@ -1,22 +1,33 @@
 #if WINDOWS
 using NAudio.Wave;
+using NAudioWaveFormat = NAudio.Wave.WaveFormat;
 #endif
+using NWaves.Effects.Stereo;
 
 namespace BinSoundTech.Services;
 
 /// <summary>
-/// Microphone monitoring service that captures and monitors live microphone input.
-/// Uses NAudio for Windows audio capture with real-time level monitoring.
+/// Microphone monitoring service that captures live microphone input with binaural panning.
+/// Uses NAudio for Windows audio capture and applies real-time binaural HRTF processing.
 /// </summary>
 public class MicrophoneMonitoringService : IDisposable
+#if WINDOWS
+    , ISampleProvider
+#endif
 {
 #if WINDOWS
     private IWaveIn? _waveIn;
-    private WaveInBuffer[] _buffers = Array.Empty<WaveInBuffer>();
+    private IWavePlayer? _waveOut;
+    private BufferedWaveProvider? _bufferedProvider;
+    private NAudioWaveFormat? _waveFormat;
     private volatile bool _isMonitoring;
     private float[] _levelBuffer = new float[2048];
     private int _bufferPosition;
     private readonly object _levelLock = new();
+    private BinauralPanEffect? _binauralPanEffect;
+    private float _azimuth;
+    private float _elevation;
+    private readonly float[] _tmpBuffer = new float[16000];
 #endif
 
     /// <summary>
@@ -39,6 +50,38 @@ public class MicrophoneMonitoringService : IDisposable
 #else
         get => false;
 #endif
+    }
+
+    /// <summary>
+    /// Gets or sets the azimuth angle in degrees (-80 to 80).
+    /// </summary>
+    public float Azimuth
+    {
+        get => _azimuth;
+        set
+        {
+            _azimuth = value;
+            if (_binauralPanEffect != null)
+            {
+                _binauralPanEffect.Azimuth = _azimuth;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Gets or sets the elevation angle in degrees (-45 to 231).
+    /// </summary>
+    public float Elevation
+    {
+        get => _elevation;
+        set
+        {
+            _elevation = value;
+            if (_binauralPanEffect != null)
+            {
+                _binauralPanEffect.Elevation = _elevation;
+            }
+        }
     }
 
     /// <summary>
@@ -66,7 +109,31 @@ public class MicrophoneMonitoringService : IDisposable
     }
 
     /// <summary>
-    /// Starts monitoring microphone input.
+    /// Loads HRTF data for binaural panning effect.
+    /// </summary>
+    /// <param name="hrtfData">The HRTF data to use</param>
+    public void LoadHrtfData(HrtfData hrtfData)
+    {
+#if WINDOWS
+        if (hrtfData.LeftHrirs.Length == 0 || hrtfData.RightHrirs.Length == 0)
+        {
+            throw new InvalidOperationException("HRTF data is empty");
+        }
+
+        _binauralPanEffect = new BinauralPanEffect(
+            hrtfData.Azimuths,
+            hrtfData.Elevations,
+            hrtfData.LeftHrirs,
+            hrtfData.RightHrirs)
+        {
+            Azimuth = _azimuth,
+            Elevation = _elevation
+        };
+#endif
+    }
+
+    /// <summary>
+    /// Starts monitoring microphone input with binaural panning applied.
     /// </summary>
     public void StartMonitoring()
     {
@@ -75,12 +142,28 @@ public class MicrophoneMonitoringService : IDisposable
 
         try
         {
-            // Create wave input device - WaveInEvent is better for background threads
+            // Create wave format for microphone input - 44.1kHz, 16-bit, Mono
+            var inputFormat = new NAudioWaveFormat(44100, 16, 1);
+
+            // Create wave input device
             _waveIn = new WaveInEvent
             {
                 DeviceNumber = 0, // Default device
-                WaveFormat = new WaveFormat(44100, 16, 1) // 44.1kHz, 16-bit, Mono
+                WaveFormat = inputFormat
             };
+
+            // Create buffered provider for processed audio output (stereo, IEEE float)
+            _waveFormat = NAudioWaveFormat.CreateIeeeFloatWaveFormat(44100, 2);
+            _bufferedProvider = new BufferedWaveProvider(_waveFormat)
+            {
+                DiscardOnBufferOverflow = true,
+                BufferDuration = TimeSpan.FromMilliseconds(200)
+            };
+
+            // Create wave output device
+            _waveOut = new WaveOutEvent();
+            _waveOut.Init(_bufferedProvider);
+            _waveOut.Play();
 
             // Hook up event handlers
             _waveIn.DataAvailable += OnWaveInDataAvailable;
@@ -92,6 +175,7 @@ public class MicrophoneMonitoringService : IDisposable
         catch (Exception ex)
         {
             _isMonitoring = false;
+            Cleanup();
             MonitoringStopped?.Invoke(this, EventArgs.Empty);
             throw new InvalidOperationException("Failed to start microphone monitoring", ex);
         }
@@ -110,6 +194,7 @@ public class MicrophoneMonitoringService : IDisposable
         {
             _waveIn?.StopRecording();
             _isMonitoring = false;
+            Cleanup();
         }
         catch (Exception ex)
         {
@@ -124,27 +209,93 @@ public class MicrophoneMonitoringService : IDisposable
     /// </summary>
     private void OnWaveInDataAvailable(object? sender, WaveInEventArgs e)
     {
-        // Convert byte buffer to float samples and calculate RMS
-        lock (_levelLock)
-        {
-            _bufferPosition = 0;
-            
-            // Process samples from the audio buffer
-            var bytesPerSample = 2; // 16-bit = 2 bytes
-            for (int i = 0; i < e.BytesRecorded; i += bytesPerSample)
-            {
-                if (_bufferPosition >= _levelBuffer.Length) break;
+        // Convert byte buffer to float samples
+        var bytesPerSample = 2; // 16-bit = 2 bytes
+        var sampleCount = e.BytesRecorded / bytesPerSample;
+        var floatBuffer = new float[sampleCount];
 
-                // Convert byte pair to short (16-bit signed)
-                short sample = BitConverter.ToInt16(e.Buffer, i);
-                
-                // Normalize to -1 to 1 range
-                _levelBuffer[_bufferPosition++] = sample / 32768f;
-            }
+        for (int i = 0; i < sampleCount; i++)
+        {
+            short sample = BitConverter.ToInt16(e.Buffer, i * bytesPerSample);
+            floatBuffer[i] = sample / 32768f;
         }
+
+        // Apply binaural panning effect if available
+        byte[] processedAudio;
+        if (_binauralPanEffect != null)
+        {
+            processedAudio = ProcessAudioWithBinaural(floatBuffer);
+        }
+        else
+        {
+            // No binaural effect, just convert mono to stereo
+            processedAudio = ConvertMonoToStereo(floatBuffer);
+        }
+
+        // Add processed audio to playback buffer
+        _bufferedProvider?.AddSamples(processedAudio, 0, processedAudio.Length);
+
+        // Update level monitoring
+        UpdateLevelMonitoring(floatBuffer);
 
         // Raise level update event
         LevelUpdated?.Invoke(this, new AudioLevelEventArgs { Level = CurrentLevel });
+    }
+
+    /// <summary>
+    /// Processes mono audio through the binaural panning effect to create stereo output.
+    /// </summary>
+    private byte[] ProcessAudioWithBinaural(float[] monoSamples)
+    {
+        var stereoSamples = new float[monoSamples.Length * 2];
+        
+        for (int i = 0; i < monoSamples.Length; i++)
+        {
+            _binauralPanEffect!.Process(monoSamples[i], out float left, out float right);
+            stereoSamples[i * 2] = left;
+            stereoSamples[i * 2 + 1] = right;
+        }
+
+        return ConvertFloatToBytes(stereoSamples);
+    }
+
+    /// <summary>
+    /// Converts mono audio to stereo without processing.
+    /// </summary>
+    private byte[] ConvertMonoToStereo(float[] monoSamples)
+    {
+        var stereoSamples = new float[monoSamples.Length * 2];
+        
+        for (int i = 0; i < monoSamples.Length; i++)
+        {
+            // Duplicate mono sample to both channels
+            stereoSamples[i * 2] = monoSamples[i];
+            stereoSamples[i * 2 + 1] = monoSamples[i];
+        }
+
+        return ConvertFloatToBytes(stereoSamples);
+    }
+
+    /// <summary>
+    /// Converts float samples to byte buffer (IEEE 32-bit float format).
+    /// </summary>
+    private byte[] ConvertFloatToBytes(float[] samples)
+    {
+        var bytes = new byte[samples.Length * 4];
+        Buffer.BlockCopy(samples, 0, bytes, 0, bytes.Length);
+        return bytes;
+    }
+
+    /// <summary>
+    /// Updates level monitoring from audio samples.
+    /// </summary>
+    private void UpdateLevelMonitoring(float[] samples)
+    {
+        lock (_levelLock)
+        {
+            _bufferPosition = Math.Min(samples.Length, _levelBuffer.Length);
+            Array.Copy(samples, _levelBuffer, _bufferPosition);
+        }
     }
 
     /// <summary>
@@ -161,6 +312,31 @@ public class MicrophoneMonitoringService : IDisposable
 
         MonitoringStopped?.Invoke(this, EventArgs.Empty);
     }
+
+    /// <summary>
+    /// Cleans up audio playback resources.
+    /// </summary>
+    private void Cleanup()
+    {
+        _waveOut?.Stop();
+        _waveOut?.Dispose();
+        _waveOut = null;
+        _bufferedProvider = null;
+    }
+
+    /// <summary>
+    /// ISampleProvider implementation.
+    /// </summary>
+    public NAudioWaveFormat WaveFormat => _waveFormat ?? NAudioWaveFormat.CreateIeeeFloatWaveFormat(44100, 2);
+
+    /// <summary>
+    /// ISampleProvider implementation.
+    /// </summary>
+    public int Read(float[] buffer, int offset, int count)
+    {
+        // This is not used in current implementation
+        return 0;
+    }
 #endif
 
     /// <summary>
@@ -170,7 +346,7 @@ public class MicrophoneMonitoringService : IDisposable
     {
 #if WINDOWS
         StopMonitoring();
-        _waveIn?.Dispose();
+        Cleanup();
 #endif
         GC.SuppressFinalize(this);
     }
@@ -186,3 +362,4 @@ public class AudioLevelEventArgs : EventArgs
     /// </summary>
     public float Level { get; set; }
 }
+
