@@ -25,8 +25,14 @@ public class MicrophoneMonitoringService : IDisposable
     private int _bufferPosition;
     private readonly object _levelLock = new();
     private BinauralPanEffect? _binauralPanEffect;
+    private BinauralPanEffect? _binauralPanEffectNext;
     private float _azimuth;
     private float _elevation;
+    private float _targetAzimuth;
+    private float _targetElevation;
+    private float _azimuthRampRemaining;
+    private float _elevationRampRemaining;
+    private const float RampDurationMs = 50f; // 50ms ramp for smooth transitions
     private readonly float[] _tmpBuffer = new float[16000];
 #endif
 
@@ -54,32 +60,56 @@ public class MicrophoneMonitoringService : IDisposable
 
     /// <summary>
     /// Gets or sets the azimuth angle in degrees (-80 to 80).
+    /// Changes are ramped smoothly to avoid audio clicks.
     /// </summary>
     public float Azimuth
     {
         get => _azimuth;
         set
         {
-            _azimuth = value;
-            if (_binauralPanEffect != null)
+            if (!_isMonitoring) 
             {
-                _binauralPanEffect.Azimuth = _azimuth;
+                _azimuth = value;
+                if (_binauralPanEffect != null)
+                {
+                    _binauralPanEffect.Azimuth = value;
+                }
+                return;
+            }
+
+            // If value changed, initiate ramp
+            if (Math.Abs(value - _targetAzimuth) > 0.1f)
+            {
+                _targetAzimuth = value;
+                _azimuthRampRemaining = RampDurationMs;
             }
         }
     }
 
     /// <summary>
     /// Gets or sets the elevation angle in degrees (-45 to 231).
+    /// Changes are ramped smoothly to avoid audio clicks.
     /// </summary>
     public float Elevation
     {
         get => _elevation;
         set
         {
-            _elevation = value;
-            if (_binauralPanEffect != null)
+            if (!_isMonitoring)
             {
-                _binauralPanEffect.Elevation = _elevation;
+                _elevation = value;
+                if (_binauralPanEffect != null)
+                {
+                    _binauralPanEffect.Elevation = value;
+                }
+                return;
+            }
+
+            // If value changed, initiate ramp
+            if (Math.Abs(value - _targetElevation) > 0.1f)
+            {
+                _targetElevation = value;
+                _elevationRampRemaining = RampDurationMs;
             }
         }
     }
@@ -129,6 +159,12 @@ public class MicrophoneMonitoringService : IDisposable
             Azimuth = _azimuth,
             Elevation = _elevation
         };
+
+        // Initialize target values to current values (no ramping on load)
+        _targetAzimuth = _azimuth;
+        _targetElevation = _elevation;
+        _azimuthRampRemaining = 0;
+        _elevationRampRemaining = 0;
 #endif
     }
 
@@ -244,13 +280,32 @@ public class MicrophoneMonitoringService : IDisposable
 
     /// <summary>
     /// Processes mono audio through the binaural panning effect to create stereo output.
+    /// Handles smooth parameter ramping to avoid clicks.
     /// </summary>
     private byte[] ProcessAudioWithBinaural(float[] monoSamples)
     {
         var stereoSamples = new float[monoSamples.Length * 2];
+        var sampleRateHz = 44100f;
         
         for (int i = 0; i < monoSamples.Length; i++)
         {
+            // Update ramping parameters
+            if (_azimuthRampRemaining > 0)
+            {
+                var rampProgress = 1f - (_azimuthRampRemaining / RampDurationMs);
+                _azimuth = _azimuth + (_targetAzimuth - _azimuth) * rampProgress;
+                _binauralPanEffect!.Azimuth = _azimuth;
+                _azimuthRampRemaining -= (1000f / sampleRateHz); // Convert to ms
+            }
+
+            if (_elevationRampRemaining > 0)
+            {
+                var rampProgress = 1f - (_elevationRampRemaining / RampDurationMs);
+                _elevation = _elevation + (_targetElevation - _elevation) * rampProgress;
+                _binauralPanEffect!.Elevation = _elevation;
+                _elevationRampRemaining -= (1000f / sampleRateHz); // Convert to ms
+            }
+
             _binauralPanEffect!.Process(monoSamples[i], out float left, out float right);
             stereoSamples[i * 2] = left;
             stereoSamples[i * 2 + 1] = right;

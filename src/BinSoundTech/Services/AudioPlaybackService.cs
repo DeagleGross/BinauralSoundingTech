@@ -27,6 +27,11 @@ public class AudioPlaybackService : IDisposable
     private bool _isPlaying;
     private float _azimuth;
     private float _elevation;
+    private float _targetAzimuth;
+    private float _targetElevation;
+    private float _azimuthRampRemaining;
+    private float _elevationRampRemaining;
+    private const float RampDurationMs = 50f; // 50ms ramp for smooth transitions
     private BinauralPanEffect? _binauralPanEffect;
     private PanEffect _panEffect = new(0, PanRule.Linear);
 
@@ -37,32 +42,56 @@ public class AudioPlaybackService : IDisposable
 
     /// <summary>
     /// Gets or sets the azimuth angle in degrees (-80 to 80).
+    /// Changes are ramped smoothly to avoid audio clicks.
     /// </summary>
     public float Azimuth
     {
         get => _azimuth;
         set
         {
-            _azimuth = value;
-            if (_binauralPanEffect != null)
+            if (!_isPlaying)
             {
-                _binauralPanEffect.Azimuth = _azimuth;
+                _azimuth = value;
+                if (_binauralPanEffect != null)
+                {
+                    _binauralPanEffect.Azimuth = value;
+                }
+                return;
+            }
+
+            // If value changed, initiate ramp
+            if (Math.Abs(value - _targetAzimuth) > 0.1f)
+            {
+                _targetAzimuth = value;
+                _azimuthRampRemaining = RampDurationMs;
             }
         }
     }
 
     /// <summary>
     /// Gets or sets the elevation angle in degrees (-45 to 231).
+    /// Changes are ramped smoothly to avoid audio clicks.
     /// </summary>
     public float Elevation
     {
         get => _elevation;
         set
         {
-            _elevation = value;
-            if (_binauralPanEffect != null)
+            if (!_isPlaying)
             {
-                _binauralPanEffect.Elevation = _elevation;
+                _elevation = value;
+                if (_binauralPanEffect != null)
+                {
+                    _binauralPanEffect.Elevation = value;
+                }
+                return;
+            }
+
+            // If value changed, initiate ramp
+            if (Math.Abs(value - _targetElevation) > 0.1f)
+            {
+                _targetElevation = value;
+                _elevationRampRemaining = RampDurationMs;
             }
         }
     }
@@ -113,6 +142,12 @@ public class AudioPlaybackService : IDisposable
             Azimuth = _azimuth,
             Elevation = _elevation
         };
+
+        // Initialize target values to current values (no ramping on load)
+        _targetAzimuth = _azimuth;
+        _targetElevation = _elevation;
+        _azimuthRampRemaining = 0;
+        _elevationRampRemaining = 0;
     }
 
     /// <summary>
@@ -224,6 +259,7 @@ public class AudioPlaybackService : IDisposable
 
     /// <summary>
     /// Reads mono audio and applies stereo effect to create binaural output.
+    /// Handles smooth parameter ramping to avoid clicks.
     /// </summary>
     private int ReadMono(float[] buffer, int offset, int count)
     {
@@ -237,10 +273,29 @@ public class AudioPlaybackService : IDisposable
             return samplesRead;
         }
 
+        var sampleRateHz = _reader.WaveFormat.SampleRate;
+
         // Apply stereo effect to mono input, producing stereo output
         var pos = offset;
         for (var n = 0; n < samplesRead; n++)
         {
+            // Update ramping parameters
+            if (_azimuthRampRemaining > 0 && _binauralPanEffect != null)
+            {
+                var rampProgress = 1f - (_azimuthRampRemaining / RampDurationMs);
+                _azimuth = _azimuth + (_targetAzimuth - _azimuth) * rampProgress;
+                _binauralPanEffect.Azimuth = _azimuth;
+                _azimuthRampRemaining -= (1000f / sampleRateHz);
+            }
+
+            if (_elevationRampRemaining > 0 && _binauralPanEffect != null)
+            {
+                var rampProgress = 1f - (_elevationRampRemaining / RampDurationMs);
+                _elevation = _elevation + (_targetElevation - _elevation) * rampProgress;
+                _binauralPanEffect.Elevation = _elevation;
+                _elevationRampRemaining -= (1000f / sampleRateHz);
+            }
+
             _effect.Process(_tmpBuffer[n], out float left, out float right);
             buffer[pos++] = left;
             buffer[pos++] = right;
@@ -251,6 +306,7 @@ public class AudioPlaybackService : IDisposable
 
     /// <summary>
     /// Reads stereo audio and applies stereo effect.
+    /// Handles smooth parameter ramping to avoid clicks.
     /// </summary>
     private int ReadStereo(float[] buffer, int offset, int count)
     {
@@ -263,9 +319,28 @@ public class AudioPlaybackService : IDisposable
             return samplesRead;
         }
 
+        var sampleRateHz = _reader.WaveFormat.SampleRate;
+
         // Apply stereo effect to each stereo sample pair
         for (var n = offset; n < samplesRead; n += 2)
         {
+            // Update ramping parameters
+            if (_azimuthRampRemaining > 0 && _binauralPanEffect != null)
+            {
+                var rampProgress = 1f - (_azimuthRampRemaining / RampDurationMs);
+                _azimuth = _azimuth + (_targetAzimuth - _azimuth) * rampProgress;
+                _binauralPanEffect.Azimuth = _azimuth;
+                _azimuthRampRemaining -= (1000f / sampleRateHz);
+            }
+
+            if (_elevationRampRemaining > 0 && _binauralPanEffect != null)
+            {
+                var rampProgress = 1f - (_elevationRampRemaining / RampDurationMs);
+                _elevation = _elevation + (_targetElevation - _elevation) * rampProgress;
+                _binauralPanEffect.Elevation = _elevation;
+                _elevationRampRemaining -= (1000f / sampleRateHz);
+            }
+
             _effect.Process(ref buffer[n], ref buffer[n + 1]);
         }
 
