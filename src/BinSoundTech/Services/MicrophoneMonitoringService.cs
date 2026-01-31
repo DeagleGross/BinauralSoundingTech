@@ -15,6 +15,11 @@ public class MicrophoneMonitoringService : IDisposable
     , ISampleProvider
 #endif
 {
+    private float _azimuth;
+    private float _elevation;
+    private float _volume = 1.0f;
+    private bool _isMuted;
+
 #if WINDOWS
     private IWaveIn? _waveIn;
     private IWavePlayer? _waveOut;
@@ -25,8 +30,6 @@ public class MicrophoneMonitoringService : IDisposable
     private int _bufferPosition;
     private readonly object _levelLock = new();
     private BinauralPanEffect? _binauralPanEffect;
-    private float _azimuth;
-    private float _elevation;
     private readonly float[] _tmpBuffer = new float[16000];
 #endif
 
@@ -61,10 +64,12 @@ public class MicrophoneMonitoringService : IDisposable
         set
         {
             _azimuth = value;
+#if WINDOWS
             if (_binauralPanEffect != null)
             {
                 _binauralPanEffect.Azimuth = _azimuth;
             }
+#endif
         }
     }
 
@@ -77,11 +82,31 @@ public class MicrophoneMonitoringService : IDisposable
         set
         {
             _elevation = value;
+#if WINDOWS
             if (_binauralPanEffect != null)
             {
                 _binauralPanEffect.Elevation = _elevation;
             }
+#endif
         }
+    }
+
+    /// <summary>
+    /// Gets or sets the volume level (0.0 to 1.0).
+    /// </summary>
+    public float Volume
+    {
+        get => _volume;
+        set => _volume = Math.Clamp(value, 0f, 1f);
+    }
+
+    /// <summary>
+    /// Gets or sets whether the audio is muted.
+    /// </summary>
+    public bool IsMuted
+    {
+        get => _isMuted;
+        set => _isMuted = value;
     }
 
     /// <summary>
@@ -134,8 +159,18 @@ public class MicrophoneMonitoringService : IDisposable
 
     /// <summary>
     /// Starts monitoring microphone input with binaural panning applied.
+    /// Uses the default audio input device.
     /// </summary>
     public void StartMonitoring()
+    {
+        StartMonitoring(0);
+    }
+
+    /// <summary>
+    /// Starts monitoring microphone input with binaural panning applied.
+    /// </summary>
+    /// <param name="deviceIndex">The index of the audio input device to use.</param>
+    public void StartMonitoring(int deviceIndex)
     {
 #if WINDOWS
         if (_isMonitoring) return;
@@ -145,11 +180,12 @@ public class MicrophoneMonitoringService : IDisposable
             // Create wave format for microphone input - 44.1kHz, 16-bit, Mono
             var inputFormat = new NAudioWaveFormat(44100, 16, 1);
 
-            // Create wave input device
+            // Create wave input device with specified device index
             _waveIn = new WaveInEvent
             {
-                DeviceNumber = 0, // Default device
-                WaveFormat = inputFormat
+                DeviceNumber = deviceIndex,
+                WaveFormat = inputFormat,
+                BufferMilliseconds = 50 // Lower latency
             };
 
             // Create buffered provider for processed audio output (stereo, IEEE float)
@@ -161,7 +197,10 @@ public class MicrophoneMonitoringService : IDisposable
             };
 
             // Create wave output device
-            _waveOut = new WaveOutEvent();
+            _waveOut = new WaveOutEvent
+            {
+                DesiredLatency = 100 // Lower latency for real-time monitoring
+            };
             _waveOut.Init(_bufferedProvider);
             _waveOut.Play();
 
@@ -171,13 +210,16 @@ public class MicrophoneMonitoringService : IDisposable
 
             _isMonitoring = true;
             _waveIn.StartRecording();
+            
+            System.Diagnostics.Debug.WriteLine($"Started monitoring device {deviceIndex}");
         }
         catch (Exception ex)
         {
+            System.Diagnostics.Debug.WriteLine($"Failed to start monitoring: {ex.Message}");
             _isMonitoring = false;
             Cleanup();
             MonitoringStopped?.Invoke(this, EventArgs.Empty);
-            throw new InvalidOperationException("Failed to start microphone monitoring", ex);
+            throw new InvalidOperationException($"Failed to start microphone monitoring on device {deviceIndex}", ex);
         }
 #endif
     }
@@ -195,9 +237,11 @@ public class MicrophoneMonitoringService : IDisposable
             _waveIn?.StopRecording();
             _isMonitoring = false;
             Cleanup();
+            System.Diagnostics.Debug.WriteLine("Stopped monitoring");
         }
         catch (Exception ex)
         {
+            System.Diagnostics.Debug.WriteLine($"Error stopping monitoring: {ex.Message}");
             throw new InvalidOperationException("Failed to stop microphone monitoring", ex);
         }
 #endif
@@ -209,6 +253,8 @@ public class MicrophoneMonitoringService : IDisposable
     /// </summary>
     private void OnWaveInDataAvailable(object? sender, WaveInEventArgs e)
     {
+        if (e.BytesRecorded == 0) return;
+        
         // Convert byte buffer to float samples
         var bytesPerSample = 2; // 16-bit = 2 bytes
         var sampleCount = e.BytesRecorded / bytesPerSample;
@@ -218,6 +264,19 @@ public class MicrophoneMonitoringService : IDisposable
         {
             short sample = BitConverter.ToInt16(e.Buffer, i * bytesPerSample);
             floatBuffer[i] = sample / 32768f;
+        }
+
+        // Update level monitoring (before volume/mute applied)
+        UpdateLevelMonitoring(floatBuffer);
+
+        // Apply volume and mute
+        float effectiveVolume = _isMuted ? 0f : _volume;
+        if (effectiveVolume < 1f)
+        {
+            for (int i = 0; i < floatBuffer.Length; i++)
+            {
+                floatBuffer[i] *= effectiveVolume;
+            }
         }
 
         // Apply binaural panning effect if available
@@ -234,9 +293,6 @@ public class MicrophoneMonitoringService : IDisposable
 
         // Add processed audio to playback buffer
         _bufferedProvider?.AddSamples(processedAudio, 0, processedAudio.Length);
-
-        // Update level monitoring
-        UpdateLevelMonitoring(floatBuffer);
 
         // Raise level update event
         LevelUpdated?.Invoke(this, new AudioLevelEventArgs { Level = CurrentLevel });
@@ -314,10 +370,18 @@ public class MicrophoneMonitoringService : IDisposable
     }
 
     /// <summary>
-    /// Cleans up audio playback resources.
+    /// Cleans up audio resources.
     /// </summary>
     private void Cleanup()
     {
+        if (_waveIn != null)
+        {
+            _waveIn.DataAvailable -= OnWaveInDataAvailable;
+            _waveIn.RecordingStopped -= OnWaveInRecordingStopped;
+            _waveIn.Dispose();
+            _waveIn = null;
+        }
+        
         _waveOut?.Stop();
         _waveOut?.Dispose();
         _waveOut = null;

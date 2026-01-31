@@ -27,6 +27,8 @@ public class AudioPlaybackService : IDisposable
     private bool _isPlaying;
     private float _azimuth;
     private float _elevation;
+    private float _volume = 1.0f;
+    private bool _isMuted;
     private BinauralPanEffect? _binauralPanEffect;
     private PanEffect _panEffect = new(0, PanRule.Linear);
 
@@ -65,6 +67,24 @@ public class AudioPlaybackService : IDisposable
                 _binauralPanEffect.Elevation = _elevation;
             }
         }
+    }
+
+    /// <summary>
+    /// Gets or sets the volume level (0.0 to 1.0).
+    /// </summary>
+    public float Volume
+    {
+        get => _volume;
+        set => _volume = Math.Clamp(value, 0f, 1f);
+    }
+
+    /// <summary>
+    /// Gets or sets whether the audio is muted.
+    /// </summary>
+    public bool IsMuted
+    {
+        get => _isMuted;
+        set => _isMuted = value;
     }
 
     /// <summary>
@@ -237,13 +257,16 @@ public class AudioPlaybackService : IDisposable
             return samplesRead;
         }
 
+        // Calculate effective volume
+        float effectiveVolume = _isMuted ? 0f : _volume;
+
         // Apply stereo effect to mono input, producing stereo output
         var pos = offset;
         for (var n = 0; n < samplesRead; n++)
         {
             _effect.Process(_tmpBuffer[n], out float left, out float right);
-            buffer[pos++] = left;
-            buffer[pos++] = right;
+            buffer[pos++] = left * effectiveVolume;
+            buffer[pos++] = right * effectiveVolume;
         }
 
         return samplesRead * 2;
@@ -263,10 +286,15 @@ public class AudioPlaybackService : IDisposable
             return samplesRead;
         }
 
+        // Calculate effective volume
+        float effectiveVolume = _isMuted ? 0f : _volume;
+
         // Apply stereo effect to each stereo sample pair
         for (var n = offset; n < samplesRead; n += 2)
         {
             _effect.Process(ref buffer[n], ref buffer[n + 1]);
+            buffer[n] *= effectiveVolume;
+            buffer[n + 1] *= effectiveVolume;
         }
 
         return samplesRead;

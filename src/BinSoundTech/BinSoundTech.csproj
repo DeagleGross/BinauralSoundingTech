@@ -68,5 +68,10 @@
 	<ItemGroup Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'windows'">
 		<PackageReference Include="NAudio" Version="2.2.1" />
 	</ItemGroup>
+	<ItemGroup>
+	  <MauiXaml Update="Pages\AudioInputsPage.xaml">
+	    <Generator>MSBuild:Compile</Generator>
+	  </MauiXaml>
+	</ItemGroup>
 	
 </Project>
