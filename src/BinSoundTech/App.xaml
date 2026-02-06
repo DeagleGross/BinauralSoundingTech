@@ -2,6 +2,7 @@
 <Application xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              xmlns:local="clr-namespace:BinSoundTech"
+             xmlns:conv="clr-namespace:BinSoundTech.Converters"
              x:Class="BinSoundTech.App">
     <Application.Resources>
         <ResourceDictionary>
@@ -9,6 +10,12 @@
                 <ResourceDictionary Source="Resources/Styles/Colors.xaml" />
                 <ResourceDictionary Source="Resources/Styles/Styles.xaml" />
             </ResourceDictionary.MergedDictionaries>
+            
+            <!-- Global Converters -->
+            <conv:BoolToOpacityConverter x:Key="BoolToOpacityConverter" />
+            <conv:BoolToTextConverter x:Key="BoolToTextConverter" />
+            <conv:BoolToButtonColorConverter x:Key="BoolToButtonColorConverter" />
+            <conv:BoolToPlayButtonColorConverter x:Key="BoolToPlayButtonColorConverter" />
         </ResourceDictionary>
     </Application.Resources>
 </Application>
