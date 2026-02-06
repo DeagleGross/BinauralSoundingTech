@@ -2,230 +2,82 @@
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              xmlns:vm="clr-namespace:BinSoundTech.ViewModels"
-             xmlns:conv="clr-namespace:BinSoundTech.Converters"
              x:Class="BinSoundTech.MainPage"
              x:DataType="vm:MainPageViewModel"
              Title="Binaural Sound Tech">
 
-    <ContentPage.Resources>
-        <conv:BoolToOpacityConverter x:Key="BoolToOpacityConverter" />
-        <conv:BoolToTextConverter x:Key="BoolToTextConverter" />
-    </ContentPage.Resources>
-
     <ScrollView>
-        <VerticalStackLayout Padding="20" Spacing="20">
+        <VerticalStackLayout Padding="30" Spacing="25">
             
-            <!-- Header -->
-            <Label Text="Binaural Panning Controls"
-                   FontSize="24"
-                   FontAttributes="Bold"
-                   HorizontalOptions="Center"
-                   SemanticProperties.HeadingLevel="Level1" />
+            <!-- App Title -->
+            <VerticalStackLayout Spacing="10" Margin="0,20,0,10">
+                <Label Text="Binaural Sound Tech"
+                       FontSize="32"
+                       FontAttributes="Bold"
+                       HorizontalOptions="Center"
+                       SemanticProperties.HeadingLevel="Level1" />
+                <Label Text="3D Audio Positioning with HRTF"
+                       FontSize="16"
+                       TextColor="Gray"
+                       HorizontalOptions="Center" />
+            </VerticalStackLayout>
 
             <!-- Loading Status -->
             <Label Text="{Binding LoadingStatus}"
-                   FontSize="14"
+                   FontSize="12"
                    TextColor="Gray"
-                   HorizontalOptions="Center"
-                   Opacity="{Binding IsLoadingHrtf, Converter={StaticResource BoolToOpacityConverter}}" />
+                   HorizontalOptions="Center" />
 
-            <!-- Direction Indicator -->
-            <Border BackgroundColor="{AppThemeBinding Light={StaticResource Primary}, Dark={StaticResource PrimaryDark}}"
-                   Padding="15"
-                   StrokeShape="RoundRectangle 10"
-                   HorizontalOptions="Center">
-                <Label Text="{Binding DirectionDescription}"
-                       FontSize="18"
-                       TextColor="White"
-                       HorizontalOptions="Center" />
-            </Border>
-
-            <!-- Azimuth Control -->
+            <!-- App Description -->
             <Border BackgroundColor="{AppThemeBinding Light=#F5F5F5, Dark=#2D2D2D}"
                    Padding="20"
-                   StrokeShape="RoundRectangle 10">
-                <VerticalStackLayout Spacing="10">
-                    <Label Text="Azimuth (Left/Right)"
+                   StrokeShape="RoundRectangle 12">
+                <VerticalStackLayout Spacing="15">
+                    <Label Text="What is Binaural Audio?"
                            FontSize="18"
                            FontAttributes="Bold" />
-                    
-                    <Grid ColumnDefinitions="50,*,50" RowDefinitions="Auto,Auto">
-                        <Label Grid.Column="0" 
-                               Text="-80" 
-                               VerticalOptions="Center"
-                               HorizontalOptions="Start" />
-                        
-                        <Slider Grid.Column="1"
-                                Minimum="{Binding AzimuthMinimum}"
-                                Maximum="{Binding AzimuthMaximum}"
-                                Value="{Binding Azimuth}"
-                                MinimumTrackColor="{StaticResource Primary}"
-                                MaximumTrackColor="LightGray"
-                                ThumbColor="{StaticResource Primary}" />
-                        
-                        <Label Grid.Column="2" 
-                               Text="80" 
-                               VerticalOptions="Center"
-                               HorizontalOptions="End" />
-                        
-                        <Label Grid.Row="1" Grid.ColumnSpan="3"
-                               Text="{Binding AzimuthDisplay}"
-                               FontSize="24"
-                               FontAttributes="Bold"
-                               HorizontalOptions="Center"
-                               TextColor="{StaticResource Primary}" />
-                    </Grid>
-                    
-                    <Label Text="Negative = Left, Positive = Right"
-                           FontSize="12"
-                           TextColor="Gray"
-                           HorizontalOptions="Center" />
-                </VerticalStackLayout>
-            </Border>
 
-            <!-- Elevation Control -->
-            <Border BackgroundColor="{AppThemeBinding Light=#F5F5F5, Dark=#2D2D2D}"
-                   Padding="20"
-                   StrokeShape="RoundRectangle 10">
-                <VerticalStackLayout Spacing="10">
-                    <Label Text="Elevation (Up/Down)"
-                           FontSize="18"
-                           FontAttributes="Bold" />
-                    
-                    <Grid ColumnDefinitions="50,*,50" RowDefinitions="Auto,Auto">
-                        <Label Grid.Column="0" 
-                               Text="-45" 
-                               VerticalOptions="Center"
-                               HorizontalOptions="Start" />
-                        
-                        <Slider Grid.Column="1"
-                                Minimum="{Binding ElevationMinimum}"
-                                Maximum="{Binding ElevationMaximum}"
-                                Value="{Binding Elevation}"
-                                MinimumTrackColor="{StaticResource Elevation}"
-                                MaximumTrackColor="LightGray"
-                                ThumbColor="{StaticResource Elevation}" />
-                        
-                        <Label Grid.Column="2" 
-                               Text="231" 
-                               VerticalOptions="Center"
-                               HorizontalOptions="End" />
-                        
-                        <Label Grid.Row="1" Grid.ColumnSpan="3"
-                               Text="{Binding ElevationDisplay}"
-                               FontSize="24"
-                               FontAttributes="Bold"
-                               HorizontalOptions="Center"
-                               TextColor="{StaticResource Elevation}" />
-                    </Grid>
-                    
-                    <Label Text="0 = Ear level, 90 = Above, 180 = Behind"
-                           FontSize="12"
-                           TextColor="Gray"
-                           HorizontalOptions="Center" />
-                </VerticalStackLayout>
-            </Border>
+                    <Label Text="Binaural audio creates a 3D sound experience using Head-Related Transfer Functions (HRTF). By processing audio through HRTF filters, sounds can be positioned anywhere in 3D space around the listener - left, right, above, below, in front, or behind."
+                           FontSize="14"
+                           LineHeight="1.4" />
 
-            <!-- Microphone Monitoring -->
-            <Border BackgroundColor="{AppThemeBinding Light=#F5F5F5, Dark=#2D2D2D}"
-                   Padding="20"
-                   StrokeShape="RoundRectangle 10">
-                <VerticalStackLayout Spacing="15">
-                    <Label Text="Microphone Monitoring"
-                           FontSize="18"
-                           FontAttributes="Bold"
-                           HorizontalOptions="Center" />
-                    
-                    <Button Text="{Binding IsMicrophoneMonitoring, StringFormat='{0:f}', Converter={StaticResource BoolToTextConverter}}"
-                            Clicked="OnToggleMicrophoneClicked"
-                            HorizontalOptions="Center"
-                            WidthRequest="150" />
-                    
-                    <VerticalStackLayout Spacing="10"
-                                         IsVisible="{Binding IsMicrophoneMonitoring}">
-                        <Label Text="Input Level"
-                               FontSize="14"
-                               FontAttributes="Bold" />
-                        
-                        <ProgressBar Progress="{Binding MicrophoneLevel}"
-                                     ProgressColor="{StaticResource Primary}"
-                                     VerticalOptions="Center"
-                                     HeightRequest="20" />
-                        
-                        <Label Text="{Binding MicrophoneLevel, StringFormat='{0:P0}'}"
-                               FontSize="12"
-                               HorizontalOptions="Center"
-                               TextColor="Gray" />
-                    </VerticalStackLayout>
-                </VerticalStackLayout>
-            </Border>
-
-            <!-- Quick Position Buttons -->
-            <Border BackgroundColor="{AppThemeBinding Light=#F5F5F5, Dark=#2D2D2D}"
-                   Padding="20"
-                   StrokeShape="RoundRectangle 10">
-                <VerticalStackLayout Spacing="15">
-                    <Label Text="Quick Positions"
-                           FontSize="18"
-                           FontAttributes="Bold"
-                           HorizontalOptions="Center" />
-                    
-                    <FlexLayout JustifyContent="Center" 
-                                Wrap="Wrap" 
-                                AlignItems="Center">
-                        <Button Text="Front"
-                                Clicked="OnFrontClicked"
-                                Margin="5"
-                                WidthRequest="100" />
-                        <Button Text="Left"
-                                Clicked="OnLeftClicked"
-                                Margin="5"
-                                WidthRequest="100" />
-                        <Button Text="Right"
-                                Clicked="OnRightClicked"
-                                Margin="5"
-                                WidthRequest="100" />
-                        <Button Text="Above"
-                                Clicked="OnAboveClicked"
-                                Margin="5"
-                                WidthRequest="100" />
-                        <Button Text="Behind"
-                                Clicked="OnBehindClicked"
-                                Margin="5"
-                                WidthRequest="100" />
-                    </FlexLayout>
-                </VerticalStackLayout>
-            </Border>
-
-            <!-- Audio File Selection -->
-            <Border BackgroundColor="{AppThemeBinding Light=#F5F5F5, Dark=#2D2D2D}"
-                   Padding="20"
-                   StrokeShape="RoundRectangle 10">
-                <VerticalStackLayout Spacing="15">
-                    <Label Text="Audio File"
-                           FontSize="18"
-                           FontAttributes="Bold"
-                           HorizontalOptions="Center" />
-                    
-                    <Label Text="{Binding CurrentAudioFileName}"
+                    <Label Text="This app uses the CIPIC HRTF database to apply realistic spatial audio positioning to your audio files and microphone input in real-time."
                            FontSize="14"
                            TextColor="Gray"
-                           HorizontalOptions="Center"
-                           LineBreakMode="TailTruncation" />
-                    
-                    <Grid ColumnDefinitions="*,*,*" ColumnSpacing="10">
-                        <Button Grid.Column="0"
-                                Text="Select File"
-                                Clicked="OnSelectAudioFileClicked" />
-                        <Button Grid.Column="1"
-                                Text="Play"
-                                Clicked="OnPlayAudioClicked" />
-                        <Button Grid.Column="2"
-                                Text="Pause"
-                                Clicked="OnPauseAudioClicked" />
-                    </Grid>
+                           LineHeight="1.4" />
                 </VerticalStackLayout>
             </Border>
+
+            <!-- Navigation to Audio Inputs -->
+            <Border BackgroundColor="{AppThemeBinding Light=#E3F2FD, Dark=#1A237E}"
+                   Padding="25"
+                   StrokeShape="RoundRectangle 12">
+                <VerticalStackLayout Spacing="15" HorizontalOptions="Center">
+                    <Label Text="Audio Input Mixer"
+                           FontSize="20"
+                           FontAttributes="Bold"
+                           HorizontalOptions="Center" />
+                    <Label Text="Configure multiple audio sources (files and microphones) with individual binaural positioning, volume control, and real-time 3D audio processing."
+                           FontSize="14"
+                           TextColor="{AppThemeBinding Light=#424242, Dark=#B0BEC5}"
+                           HorizontalOptions="Center"
+                           HorizontalTextAlignment="Center"
+                           LineHeight="1.3" />
+                    <Button Text="Open Audio Mixer"
+                            Clicked="OnOpenAudioInputsClicked"
+                            HorizontalOptions="Center"
+                            Padding="30,12"
+                            FontSize="16" />
+                </VerticalStackLayout>
+            </Border>
+
+            <!-- Footer -->
+            <Label Text="Use headphones for the best 3D audio experience"
+                   FontSize="12"
+                   TextColor="Gray"
+                   HorizontalOptions="Center"
+                   FontAttributes="Italic"
+                   Margin="0,10,0,20" />
 
         </VerticalStackLayout>
     </ScrollView>

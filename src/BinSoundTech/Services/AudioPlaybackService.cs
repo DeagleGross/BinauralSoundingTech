@@ -27,11 +27,16 @@ public class AudioPlaybackService : IDisposable
     private bool _isPlaying;
     private float _azimuth;
     private float _elevation;
+<<<<<<< HEAD
     private float _targetAzimuth;
     private float _targetElevation;
     private float _azimuthRampRemaining;
     private float _elevationRampRemaining;
     private const float RampDurationMs = 50f; // 50ms ramp for smooth transitions
+=======
+    private float _volume = 1.0f;
+    private bool _isMuted;
+>>>>>>> e4b7016475284d978da49b2b7408423bdb49c0cc
     private BinauralPanEffect? _binauralPanEffect;
     private PanEffect _panEffect = new(0, PanRule.Linear);
 
@@ -94,6 +99,24 @@ public class AudioPlaybackService : IDisposable
                 _elevationRampRemaining = RampDurationMs;
             }
         }
+    }
+
+    /// <summary>
+    /// Gets or sets the volume level (0.0 to 1.0).
+    /// </summary>
+    public float Volume
+    {
+        get => _volume;
+        set => _volume = Math.Clamp(value, 0f, 1f);
+    }
+
+    /// <summary>
+    /// Gets or sets whether the audio is muted.
+    /// </summary>
+    public bool IsMuted
+    {
+        get => _isMuted;
+        set => _isMuted = value;
     }
 
     /// <summary>
@@ -273,7 +296,12 @@ public class AudioPlaybackService : IDisposable
             return samplesRead;
         }
 
+<<<<<<< HEAD
         var sampleRateHz = _reader.WaveFormat.SampleRate;
+=======
+        // Calculate effective volume
+        float effectiveVolume = _isMuted ? 0f : _volume;
+>>>>>>> e4b7016475284d978da49b2b7408423bdb49c0cc
 
         // Apply stereo effect to mono input, producing stereo output
         var pos = offset;
@@ -297,8 +325,8 @@ public class AudioPlaybackService : IDisposable
             }
 
             _effect.Process(_tmpBuffer[n], out float left, out float right);
-            buffer[pos++] = left;
-            buffer[pos++] = right;
+            buffer[pos++] = left * effectiveVolume;
+            buffer[pos++] = right * effectiveVolume;
         }
 
         return samplesRead * 2;
@@ -319,7 +347,12 @@ public class AudioPlaybackService : IDisposable
             return samplesRead;
         }
 
+<<<<<<< HEAD
         var sampleRateHz = _reader.WaveFormat.SampleRate;
+=======
+        // Calculate effective volume
+        float effectiveVolume = _isMuted ? 0f : _volume;
+>>>>>>> e4b7016475284d978da49b2b7408423bdb49c0cc
 
         // Apply stereo effect to each stereo sample pair
         for (var n = offset; n < samplesRead; n += 2)
@@ -342,6 +375,8 @@ public class AudioPlaybackService : IDisposable
             }
 
             _effect.Process(ref buffer[n], ref buffer[n + 1]);
+            buffer[n] *= effectiveVolume;
+            buffer[n + 1] *= effectiveVolume;
         }
 
         return samplesRead;

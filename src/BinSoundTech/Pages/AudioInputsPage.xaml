@@ -1,0 +1,315 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:vm="clr-namespace:BinSoundTech.ViewModels"
+             xmlns:models="clr-namespace:BinSoundTech.Models"
+             x:Class="BinSoundTech.Pages.AudioInputsPage"
+             x:DataType="vm:AudioInputsPageViewModel"
+             Title="Audio Inputs"
+             BackgroundColor="{AppThemeBinding Light=#FAFAFA, Dark=#1A1A1A}">
+
+    <Grid RowDefinitions="Auto,*,Auto" Padding="10">
+        
+        <!-- Header -->
+        <VerticalStackLayout Grid.Row="0" Spacing="5" Padding="10,5">
+            <Label Text="Audio Input Mixer"
+                   FontSize="22"
+                   FontAttributes="Bold"
+                   SemanticProperties.HeadingLevel="Level1" />
+            <Label Text="{Binding LoadingStatus}"
+                   FontSize="12"
+                   TextColor="Gray" />
+        </VerticalStackLayout>
+
+        <!-- Channel Strip Container -->
+        <ScrollView Grid.Row="1" Orientation="Horizontal">
+            <HorizontalStackLayout Spacing="5" Padding="5">
+                
+                <!-- Audio Source Strips (Ableton-style vertical channels) -->
+                <CollectionView ItemsSource="{Binding AudioSources}"
+                                ItemsLayout="HorizontalList"
+                                SelectionMode="Single"
+                                SelectedItem="{Binding SelectedSource}">
+                    <CollectionView.ItemTemplate>
+                        <DataTemplate x:DataType="models:AudioInputSource">
+                            <Border BackgroundColor="{AppThemeBinding Light=#F0F0F0, Dark=#2D2D2D}"
+                                    StrokeShape="RoundRectangle 8"
+                                    Stroke="{AppThemeBinding Light=#E0E0E0, Dark=#404040}"
+                                    StrokeThickness="1"
+                                    Padding="12"
+                                    Margin="3"
+                                    MinimumWidthRequest="200"
+                                    WidthRequest="220">
+                                <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto" RowSpacing="8">
+                                    
+                                    <!-- Channel Name -->
+                                    <Entry Grid.Row="0"
+                                           Text="{Binding Name}"
+                                           FontSize="14"
+                                           FontAttributes="Bold"
+                                           HorizontalTextAlignment="Center"
+                                           BackgroundColor="Transparent" />
+                                    
+                                    <!-- Input Type Selector -->
+                                    <Grid Grid.Row="1" ColumnDefinitions="*,*" ColumnSpacing="4">
+                                        <Button Grid.Column="0"
+                                                Text="File"
+                                                FontSize="11"
+                                                Padding="5,3"
+                                                HeightRequest="30"
+                                                BackgroundColor="{Binding IsFileInput, Converter={StaticResource BoolToButtonColorConverter}}"
+                                                Clicked="OnFileTypeClicked" />
+                                        <Button Grid.Column="1"
+                                                Text="Mic"
+                                                FontSize="11"
+                                                Padding="5,3"
+                                                HeightRequest="30"
+                                                BackgroundColor="{Binding IsMicrophoneInput, Converter={StaticResource BoolToButtonColorConverter}}"
+                                                Clicked="OnMicTypeClicked" />
+                                    </Grid>
+
+                                    <!-- Source Selection -->
+                                    <Border Grid.Row="2"
+                                            BackgroundColor="{AppThemeBinding Light=#E8E8E8, Dark=#252525}"
+                                            StrokeShape="RoundRectangle 5"
+                                            Padding="8"
+                                            MinimumHeightRequest="50">
+                                        <VerticalStackLayout Spacing="5" VerticalOptions="Center">
+                                            <!-- File Selection (when File type) -->
+                                            <VerticalStackLayout IsVisible="{Binding IsFileInput}" Spacing="3">
+                                                <Label Text="{Binding SourceDescription}"
+                                                       FontSize="10"
+                                                       LineBreakMode="TailTruncation"
+                                                       MaxLines="2"
+                                                       HorizontalOptions="Center" />
+                                                <Button Text="Browse..."
+                                                        FontSize="10"
+                                                        Padding="8,2"
+                                                        HeightRequest="26"
+                                                        HorizontalOptions="Center"
+                                                        Clicked="OnBrowseFileClicked" />
+                                            </VerticalStackLayout>
+                                            
+                                            <!-- Device Selection (when Mic type) -->
+                                            <VerticalStackLayout IsVisible="{Binding IsMicrophoneInput}" Spacing="3">
+                                                <Label Text="{Binding SourceDescription}"
+                                                       FontSize="10"
+                                                       LineBreakMode="TailTruncation"
+                                                       MaxLines="2"
+                                                       HorizontalOptions="Center" />
+                                                <Button Text="Select..."
+                                                        FontSize="10"
+                                                        Padding="8,2"
+                                                        HeightRequest="26"
+                                                        HorizontalOptions="Center"
+                                                        Clicked="OnSelectDeviceClicked" />
+                                            </VerticalStackLayout>
+                                        </VerticalStackLayout>
+                                    </Border>
+
+                                    <!-- Direction Label -->
+                                    <Border Grid.Row="3"
+                                            BackgroundColor="{AppThemeBinding Light=#E3F2FD, Dark=#1A237E}"
+                                            StrokeShape="RoundRectangle 5"
+                                            Padding="6,4">
+                                        <Label Text="{Binding DirectionDescription}"
+                                               FontSize="10"
+                                               FontAttributes="Bold"
+                                               HorizontalOptions="Center"
+                                               HorizontalTextAlignment="Center"
+                                               TextColor="{AppThemeBinding Light=#1565C0, Dark=#90CAF9}" />
+                                    </Border>
+
+                                    <!-- Azimuth and Elevation Sliders (Horizontal layout) -->
+                                    <Grid Grid.Row="4" RowDefinitions="Auto,Auto" RowSpacing="8" Padding="0,5">
+                                        
+                                        <!-- Azimuth Slider (Horizontal) -->
+                                        <Grid RowDefinitions="Auto,Auto,Auto" RowSpacing="2">
+                                            <Label Grid.Row="0"
+                                                   Text="Azimuth (L/R)"
+                                                   FontSize="10"
+                                                   FontAttributes="Bold"
+                                                   HorizontalOptions="Center"
+                                                   TextColor="{StaticResource Primary}" />
+                                            
+                                            <Grid Grid.Row="1" ColumnDefinitions="30,*,30">
+                                                <Label Grid.Column="0" 
+                                                       Text="-80" 
+                                                       FontSize="9"
+                                                       TextColor="Gray"
+                                                       VerticalOptions="Center"
+                                                       HorizontalOptions="Start" />
+                                                <Slider Grid.Column="1"
+                                                        Minimum="-80"
+                                                        Maximum="80"
+                                                        Value="{Binding Azimuth}"
+                                                        MinimumTrackColor="{StaticResource Primary}"
+                                                        MaximumTrackColor="LightGray"
+                                                        ThumbColor="{StaticResource Primary}" />
+                                                <Label Grid.Column="2" 
+                                                       Text="80" 
+                                                       FontSize="9"
+                                                       TextColor="Gray"
+                                                       VerticalOptions="Center"
+                                                       HorizontalOptions="End" />
+                                            </Grid>
+                                            
+                                            <Label Grid.Row="2"
+                                                   Text="{Binding AzimuthDisplay}"
+                                                   FontSize="12"
+                                                   FontAttributes="Bold"
+                                                   HorizontalOptions="Center"
+                                                   TextColor="{StaticResource Primary}" />
+                                        </Grid>
+                                        
+                                        <!-- Elevation Slider (Horizontal) -->
+                                        <Grid Grid.Row="1" RowDefinitions="Auto,Auto,Auto" RowSpacing="2">
+                                            <Label Grid.Row="0"
+                                                   Text="Elevation (U/D)"
+                                                   FontSize="10"
+                                                   FontAttributes="Bold"
+                                                   HorizontalOptions="Center"
+                                                   TextColor="{StaticResource Elevation}" />
+                                            
+                                            <Grid Grid.Row="1" ColumnDefinitions="30,*,30">
+                                                <Label Grid.Column="0" 
+                                                       Text="-45" 
+                                                       FontSize="9"
+                                                       TextColor="Gray"
+                                                       VerticalOptions="Center"
+                                                       HorizontalOptions="Start" />
+                                                <Slider Grid.Column="1"
+                                                        Minimum="-45"
+                                                        Maximum="231"
+                                                        Value="{Binding Elevation}"
+                                                        MinimumTrackColor="{StaticResource Elevation}"
+                                                        MaximumTrackColor="LightGray"
+                                                        ThumbColor="{StaticResource Elevation}" />
+                                                <Label Grid.Column="2" 
+                                                       Text="231" 
+                                                       FontSize="9"
+                                                       TextColor="Gray"
+                                                       VerticalOptions="Center"
+                                                       HorizontalOptions="End" />
+                                            </Grid>
+                                            
+                                            <Label Grid.Row="2"
+                                                   Text="{Binding ElevationDisplay}"
+                                                   FontSize="12"
+                                                   FontAttributes="Bold"
+                                                   HorizontalOptions="Center"
+                                                   TextColor="{StaticResource Elevation}" />
+                                        </Grid>
+                                    </Grid>
+
+                                    <!-- Volume Control -->
+                                    <Grid Grid.Row="5" ColumnDefinitions="Auto,*,Auto" ColumnSpacing="5">
+                                        <Button Grid.Column="0"
+                                                Text="{Binding MuteButtonText}"
+                                                FontSize="11"
+                                                Padding="4"
+                                                WidthRequest="36"
+                                                HeightRequest="30"
+                                                BackgroundColor="{Binding IsMuted, Converter={StaticResource BoolToButtonColorConverter}}"
+                                                Clicked="OnMuteClicked" />
+                                        <Slider Grid.Column="1"
+                                                Minimum="0"
+                                                Maximum="1"
+                                                Value="{Binding Volume}"
+                                                MinimumTrackColor="#4CAF50"
+                                                MaximumTrackColor="LightGray"
+                                                ThumbColor="#4CAF50" />
+                                        <Label Grid.Column="2"
+                                               Text="{Binding VolumeDisplay}"
+                                               FontSize="10"
+                                               WidthRequest="35"
+                                               VerticalOptions="Center"
+                                               HorizontalTextAlignment="End" />
+                                    </Grid>
+
+                                    <!-- Level Meter -->
+                                    <Grid Grid.Row="6" HeightRequest="6">
+                                        <ProgressBar Progress="{Binding Level}"
+                                                     ProgressColor="{StaticResource Primary}"
+                                                     BackgroundColor="{AppThemeBinding Light=#D0D0D0, Dark=#404040}" />
+                                    </Grid>
+
+                                    <!-- Transport Controls -->
+                                    <Grid Grid.Row="7" ColumnDefinitions="*,*,*" ColumnSpacing="4">
+                                        <Button Grid.Column="0"
+                                                Text="Play"
+                                                FontSize="11"
+                                                Padding="3"
+                                                HeightRequest="32"
+                                                BackgroundColor="{Binding IsActive, Converter={StaticResource BoolToPlayButtonColorConverter}}"
+                                                Clicked="OnPlayClicked" />
+                                        <Button Grid.Column="1"
+                                                Text="Stop"
+                                                FontSize="11"
+                                                Padding="3"
+                                                HeightRequest="32"
+                                                Clicked="OnStopClicked" />
+                                        <Button Grid.Column="2"
+                                                Text="Del"
+                                                FontSize="11"
+                                                Padding="3"
+                                                HeightRequest="32"
+                                                BackgroundColor="#E57373"
+                                                TextColor="White"
+                                                Clicked="OnRemoveClicked" />
+                                    </Grid>
+                                </Grid>
+                            </Border>
+                        </DataTemplate>
+                    </CollectionView.ItemTemplate>
+                </CollectionView>
+
+                <!-- Add Channel Button -->
+                <Border BackgroundColor="{AppThemeBinding Light=#E8E8E8, Dark=#252525}"
+                        StrokeShape="RoundRectangle 8"
+                        Stroke="{AppThemeBinding Light=#D0D0D0, Dark=#505050}"
+                        StrokeThickness="2"
+                        StrokeDashArray="5,3"
+                        Padding="15"
+                        Margin="3"
+                        WidthRequest="120"
+                        VerticalOptions="Center">
+                    <VerticalStackLayout Spacing="10" VerticalOptions="Center" HorizontalOptions="Center">
+                        <Label Text="+"
+                               FontSize="36"
+                               HorizontalOptions="Center"
+                               TextColor="Gray" />
+                        <Button Text="Add File"
+                                FontSize="12"
+                                Padding="10,5"
+                                Command="{Binding AddFileSourceCommand}" />
+                        <Button Text="Add Mic"
+                                FontSize="12"
+                                Padding="10,5"
+                                Command="{Binding AddMicrophoneSourceCommand}" />
+                    </VerticalStackLayout>
+                </Border>
+
+            </HorizontalStackLayout>
+        </ScrollView>
+
+        <!-- Bottom Toolbar -->
+        <Border Grid.Row="2"
+                BackgroundColor="{AppThemeBinding Light=#F0F0F0, Dark=#2A2A2A}"
+                Padding="10"
+                Margin="0,5,0,0">
+            <HorizontalStackLayout Spacing="15" HorizontalOptions="Center">
+                <Button Text="Refresh Devices"
+                        FontSize="12"
+                        Padding="15,8"
+                        Command="{Binding RefreshDevicesCommand}" />
+                <Label Text="{Binding AvailableDevices.Count, StringFormat='{0} devices available'}"
+                       FontSize="12"
+                       TextColor="Gray"
+                       VerticalOptions="Center" />
+            </HorizontalStackLayout>
+        </Border>
+
+    </Grid>
+
+</ContentPage>
